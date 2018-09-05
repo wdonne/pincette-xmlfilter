@@ -25,10 +25,12 @@ public class EventReaderDelegateBase extends EventReaderDelegate {
     super(reader);
   }
 
+  @Override
   public String getElementText() throws XMLStreamException {
     return Util.getElementText(this, currentEvent, entityDeclarations);
   }
 
+  @Override
   public XMLEvent nextTag() throws XMLStreamException {
     return Util.nextTag(this);
   }
