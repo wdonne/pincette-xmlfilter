@@ -136,7 +136,7 @@ public class DOMEventReader implements XMLEventReader {
     return position.node.getTextContent();
   }
 
-  private Position getNextPosition() {
+  public Position getNextPosition() {
     final Supplier<Position> firstChild =
         () ->
             position.node.getFirstChild() != null
@@ -235,11 +235,10 @@ public class DOMEventReader implements XMLEventReader {
     throw new UnsupportedOperationException();
   }
 
-  private static class Position {
-
+  public static class Position {
+    public final Node node;
     private final boolean endDocument;
     private final boolean endElement;
-    private final Node node;
 
     private Position(final Node node, final boolean endElement, final boolean endDocument) {
       this.node = node;
