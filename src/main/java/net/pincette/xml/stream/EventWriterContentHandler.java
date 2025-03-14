@@ -23,7 +23,7 @@ import org.xml.sax.SAXException;
 /**
  * A ContentHandler wrapper around an XMLEventWriter.
  *
- * @author Werner Donn\u00e9
+ * @author Werner Donné
  */
 public class EventWriterContentHandler implements ContentHandler {
   private final XMLEventFactory factory = XMLEventFactory.newFactory();

@@ -1,11 +1,11 @@
 package net.pincette.xml.sax;
 
 import static java.util.Arrays.stream;
+import static net.pincette.util.Util.tryToGetRethrow;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.lang.reflect.UndeclaredThrowableException;
 import java.util.Set;
 import javax.xml.transform.sax.TransformerHandler;
 import javax.xml.transform.stream.StreamResult;
@@ -27,10 +27,9 @@ import org.xml.sax.helpers.XMLFilterImpl;
  * you can insert the whole in a chain as one filter. The wiring of the event chains will be
  * interrupted for those filters that don't implement the corresponding handler interfaces.
  *
- * @author Werner Donn\u00e9
+ * @author Werner Donné
  */
 public class FilterOfFilters extends XMLFilterImpl {
-
   private XMLFilter first;
   private XMLFilter last;
 
@@ -74,36 +73,38 @@ public class FilterOfFilters extends XMLFilterImpl {
     first.setParent(second);
 
     // The following connections make it work also when this filter is
-    // inserted in a chain that is already running, i.e. for which parse is
+    // inserted in a chain that is already running, i.e., for which parse is
     // already called.
 
-    if (first instanceof ContentHandler) {
-      second.setContentHandler((ContentHandler) first);
+    if (first instanceof ContentHandler h) {
+      second.setContentHandler(h);
     }
 
-    if (first instanceof DTDHandler) {
-      second.setDTDHandler((DTDHandler) first);
+    if (first instanceof DTDHandler h) {
+      second.setDTDHandler(h);
     }
 
-    if (first instanceof EntityResolver) {
-      second.setEntityResolver((EntityResolver) first);
+    if (first instanceof EntityResolver h) {
+      second.setEntityResolver(h);
     }
 
-    if (first instanceof ErrorHandler) {
-      second.setErrorHandler((ErrorHandler) first);
+    if (first instanceof ErrorHandler h) {
+      second.setErrorHandler(h);
     }
   }
 
   private static ContentHandler outputHandler(final String filename) {
-    try {
-      final TransformerHandler handler = Util.newSAXTransformerFactory().newTransformerHandler();
+    return tryToGetRethrow(
+            () -> {
+              final TransformerHandler handler =
+                  Util.newSAXTransformerFactory().newTransformerHandler();
 
-      handler.setResult(new StreamResult(new FlushOutputStream(new FileOutputStream(filename))));
+              handler.setResult(
+                  new StreamResult(new FlushOutputStream(new FileOutputStream(filename))));
 
-      return handler;
-    } catch (Exception e) {
-      throw new UndeclaredThrowableException(e);
-    }
+              return handler;
+            })
+        .orElse(null);
   }
 
   private XMLFilter[] addDebug(final XMLFilter[] filters, final Set<String> includeClassNames) {
@@ -120,9 +121,8 @@ public class FilterOfFilters extends XMLFilterImpl {
           includeClassNames == null || includeClassNames.contains(filters[i].getClass().getName())
               ? new Tee(
                   new ContentHandler[] {
-                    new BalanceChecker(
-                        new File(toString() + "_" + filters[i].toString() + ".balance")),
-                    outputHandler(toString() + "_" + filters[i].toString())
+                    new BalanceChecker(new File(this + "_" + filters[i].toString() + ".balance")),
+                    outputHandler(this + "_" + filters[i].toString())
                   })
               : new XMLFilterImpl();
     }
@@ -157,20 +157,20 @@ public class FilterOfFilters extends XMLFilterImpl {
   }
 
   private void linkFirst() {
-    if (first instanceof ContentHandler) {
-      super.setContentHandler((ContentHandler) first);
+    if (first instanceof ContentHandler h) {
+      super.setContentHandler(h);
     }
 
-    if (first instanceof DTDHandler) {
-      super.setDTDHandler((DTDHandler) first);
+    if (first instanceof DTDHandler h) {
+      super.setDTDHandler(h);
     }
 
-    if (first instanceof EntityResolver) {
-      super.setEntityResolver((EntityResolver) first);
+    if (first instanceof EntityResolver r) {
+      super.setEntityResolver(r);
     }
 
-    if (first instanceof ErrorHandler) {
-      super.setErrorHandler((ErrorHandler) first);
+    if (first instanceof ErrorHandler h) {
+      super.setErrorHandler(h);
     }
   }
 

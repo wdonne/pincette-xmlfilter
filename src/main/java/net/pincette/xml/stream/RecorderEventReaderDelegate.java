@@ -6,65 +6,39 @@ import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.events.XMLEvent;
 
-
-
 /**
- * Records and replays events. If while replaying the recorded events are
- * consumed, the filter continues to read from the delegate.
- * @author Werner Donn\u00e9
+ * Records and replays events. If while replaying the recorded events are consumed, the filter
+ * continues to read from the delegate.
+ *
+ * @author Werner Donné
  */
+public class RecorderEventReaderDelegate extends EventReaderDelegateBase {
+  private final List<XMLEvent> buffer = new ArrayList<>();
+  private boolean recording = false;
+  private int replayPosition = 0;
 
-public class RecorderEventReaderDelegate extends EventReaderDelegateBase
+  public RecorderEventReaderDelegate() {}
 
-{
-
-  private List		buffer = new ArrayList();
-  private boolean	recording = false;
-  private int		replayPosition = 0;
-
-
-
-  public
-  RecorderEventReaderDelegate()
-  {
-  }
-
-
-
-  public
-  RecorderEventReaderDelegate(XMLEventReader reader)
-  {
+  public RecorderEventReaderDelegate(final XMLEventReader reader) {
     super(reader);
   }
 
-
-
-  public void
-  clear()
-  {
+  public void clear() {
     buffer.clear();
     replayPosition = 0;
   }
 
-
-
-  public boolean
-  hasNext()
-  {
+  @Override
+  public boolean hasNext() {
     return replayPosition < buffer.size() || getParent().hasNext();
   }
 
+  @Override
+  public XMLEvent nextEvent() throws XMLStreamException {
+    final XMLEvent event =
+        replayPosition < buffer.size() ? buffer.get(replayPosition++) : getParent().nextEvent();
 
-
-  public XMLEvent
-  nextEvent() throws XMLStreamException
-  {
-    XMLEvent	event =
-      replayPosition < buffer.size() ?
-        (XMLEvent) buffer.get(replayPosition++) : getParent().nextEvent();
-
-    if (recording)
-    {
+    if (recording) {
       buffer.add(event);
       ++replayPosition;
     }
@@ -74,49 +48,26 @@ public class RecorderEventReaderDelegate extends EventReaderDelegateBase
     return event;
   }
 
-
-
-  public XMLEvent
-  peek() throws XMLStreamException
-  {
-    return
-      replayPosition < buffer.size() ?
-        (XMLEvent) buffer.get(replayPosition) : getParent().peek();
+  @Override
+  public XMLEvent peek() throws XMLStreamException {
+    return replayPosition < buffer.size() ? buffer.get(replayPosition) : getParent().peek();
   }
 
-
-
-  public void
-  replay()
-  {
-    if (!recording)
-    {
+  public void replay() {
+    if (!recording) {
       replayPosition = 0;
     }
   }
 
-
-
-  public boolean
-  replayDone()
-  {
+  public boolean replayDone() {
     return replayPosition == buffer.size();
   }
 
-
-
-  public void
-  stopRecording()
-  {
+  public void stopRecording() {
     recording = false;
   }
 
-
-
-  public void
-  startRecording()
-  {
+  public void startRecording() {
     recording = true;
   }
-
-} // RecorderEventReaderDelegate
+}

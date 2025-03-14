@@ -1,8 +1,12 @@
 package net.pincette.xml.stream;
 
-import java.util.Iterator;
-import java.util.Stack;
-import javax.xml.XMLConstants;
+import static java.util.Optional.ofNullable;
+import static javax.xml.XMLConstants.XMLNS_ATTRIBUTE;
+import static javax.xml.XMLConstants.XMLNS_ATTRIBUTE_NS_URI;
+import static net.pincette.util.StreamUtil.stream;
+
+import java.util.ArrayDeque;
+import java.util.Deque;
 import javax.xml.namespace.NamespaceContext;
 import javax.xml.namespace.QName;
 import javax.xml.stream.XMLEventReader;
@@ -11,76 +15,50 @@ import javax.xml.stream.XMLStreamConstants;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.events.Attribute;
 import javax.xml.stream.events.Characters;
-import javax.xml.stream.events.Comment;
-import javax.xml.stream.events.EndDocument;
-import javax.xml.stream.events.EndElement;
 import javax.xml.stream.events.EntityReference;
 import javax.xml.stream.events.Namespace;
 import javax.xml.stream.events.ProcessingInstruction;
-import javax.xml.stream.events.StartDocument;
 import javax.xml.stream.events.StartElement;
 import javax.xml.stream.events.XMLEvent;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.AttributesImpl;
 
-
-
 /**
  * A ContentHandler wrapper.
- * @author Werner Donn\u00e9
+ *
+ * @author Werner Donné
  */
+public class ContentHandlerEventWriter implements XMLEventWriter {
+  private final Deque<Element> elements = new ArrayDeque<>();
+  private ContentHandler handler;
+  private NamespaceContext namespaceContext;
+  private boolean pendingElement = false;
 
-public class ContentHandlerEventWriter implements XMLEventWriter
+  public ContentHandlerEventWriter() {}
 
-{
-
-  private Stack<Element>	elements = new Stack<Element>();
-  private ContentHandler	handler;
-  private NamespaceContext	namespaceContext;
-  private boolean		pendingElement = false;
-
-
-
-  public
-  ContentHandlerEventWriter()
-  {
-  }
-
-
-
-  public
-  ContentHandlerEventWriter(ContentHandler handler)
-  {
+  public ContentHandlerEventWriter(final ContentHandler handler) {
     setContentHandler(handler);
   }
 
-
-
-  public void
-  add(XMLEvent event) throws XMLStreamException
-  {
-    switch (event.getEventType())
-    {
+  public void add(final XMLEvent event) throws XMLStreamException {
+    switch (event.getEventType()) {
       case XMLStreamConstants.ATTRIBUTE:
         writeAttribute((Attribute) event);
         break;
-      case XMLStreamConstants.CDATA:
-        writeCharacters((Characters) event);
-        break;
-      case XMLStreamConstants.CHARACTERS:
+      case XMLStreamConstants.CDATA, XMLStreamConstants.SPACE, XMLStreamConstants.CHARACTERS:
         writeCharacters((Characters) event);
         break;
       case XMLStreamConstants.COMMENT:
-        writeComment((Comment) event);
+        writeComment();
         break;
       case XMLStreamConstants.DTD:
         break;
       case XMLStreamConstants.END_DOCUMENT:
-        writeEndDocument((EndDocument) event);
+        writeEndDocument();
         break;
       case XMLStreamConstants.END_ELEMENT:
-        writeEndElement((EndElement) event);
+        writeEndElement();
         break;
       case XMLStreamConstants.ENTITY_DECLARATION:
         break;
@@ -95,391 +73,214 @@ public class ContentHandlerEventWriter implements XMLEventWriter
       case XMLStreamConstants.PROCESSING_INSTRUCTION:
         writeProcessingInstruction((ProcessingInstruction) event);
         break;
-      case XMLStreamConstants.SPACE:
-        writeCharacters((Characters) event);
-        break;
       case XMLStreamConstants.START_DOCUMENT:
-        writeStartDocument((StartDocument) event);
+        writeStartDocument();
         break;
       case XMLStreamConstants.START_ELEMENT:
         writeStartElement((StartElement) event);
         break;
+      default:
+        break;
     }
   }
 
-
-
-  public void
-  add(XMLEventReader reader) throws XMLStreamException
-  {
-    while (reader.hasNext())
-    {
+  public void add(final XMLEventReader reader) throws XMLStreamException {
+    while (reader.hasNext()) {
       add(reader.nextEvent());
     }
   }
 
-
-
-  public void
-  close() throws XMLStreamException
-  {
+  public void close() throws XMLStreamException {
+    // Nothing to do.
   }
 
-
-
-  private void
-  endElement() throws SAXException
-  {
-    final Element	element = elements.pop();
-
-    handler.endElement(element.namespaceURI, element.localName, element.qName);
+  public void flush() throws XMLStreamException {
+    // Nothing to do.
   }
 
-
-
-  public void
-  flush() throws XMLStreamException
-  {
-  }
-
-
-
-  private void
-  flushPendingElement() throws SAXException
-  {
-    if (pendingElement && !elements.isEmpty())
-    {
+  private void flushPendingElement() throws SAXException {
+    if (pendingElement && !elements.isEmpty()) {
       pendingElement = false;
 
-      final Element	element = elements.peek();
+      final Element element = elements.peek();
 
-      handler.startElement
-      (
-        element.namespaceURI,
-        element.localName,
-        element.qName,
-        element.attributes
-      );
-
-      if (element.empty)
-      {
-        endElement();
-      }
+      handler.startElement(
+          element.namespaceURI, element.localName, element.qName, element.attributes);
     }
   }
 
-
-
-  public ContentHandler
-  getContentHandler()
-  {
+  public ContentHandler getContentHandler() {
     return handler;
   }
 
-
-
-  public NamespaceContext
-  getNamespaceContext()
-  {
+  public NamespaceContext getNamespaceContext() {
     return namespaceContext;
   }
 
-
-
-  public String
-  getPrefix(String uri) throws XMLStreamException
-  {
+  public String getPrefix(final String uri) throws XMLStreamException {
     return null;
   }
 
-
-
-  public Object
-  getProperty(String name)
-  {
-    if (!"javax.xml.stream.isPrefixDefaulting".equals(name))
-    {
-      throw
-        new IllegalArgumentException("Property " + name + " is not supported.");
+  public Object getProperty(final String name) {
+    if (!"javax.xml.stream.isPrefixDefaulting".equals(name)) {
+      throw new IllegalArgumentException("Property " + name + " is not supported.");
     }
 
-    return new Boolean(false);
+    return Boolean.FALSE;
   }
 
-
-
-  private String
-  getQName(QName name)
-    throws XMLStreamException
-  {
-    return
-      ("".equals(name.getPrefix()) ? "" : (name.getPrefix() + ":")) +
-        name.getLocalPart();
+  private String getQName(final QName name) {
+    return ("".equals(name.getPrefix()) ? "" : (name.getPrefix() + ":")) + name.getLocalPart();
   }
 
-
-
-  public void
-  setContentHandler(ContentHandler handler)
-  {
+  public void setContentHandler(final ContentHandler handler) {
     this.handler = handler;
   }
 
-
-
-  public void
-  setDefaultNamespace(String uri) throws XMLStreamException
-  {
+  public void setDefaultNamespace(final String uri) {
+    // Nothing to do.
   }
 
-
-
-  public void
-  setNamespaceContext(NamespaceContext context)
-  {
+  public void setNamespaceContext(final NamespaceContext context) {
     namespaceContext = context;
   }
 
-
-
-  public void
-  setPrefix(String prefix, String uri) throws XMLStreamException
-  {
+  public void setPrefix(final String prefix, final String uri) {
+    // Nothing to do.
   }
 
-
-
-  private void
-  writeAttribute(Attribute event) throws XMLStreamException
-  {
-    ((Element) elements.peek()).attributes.addAttribute
-    (
-      event.getName().getNamespaceURI(),
-      event.getName().getLocalPart(),
-      getQName(event.getName()),
-      event.getDTDType(),
-      event.getValue()
-    );
+  private void writeAttribute(final Attribute event) {
+    ofNullable(elements.peek())
+        .ifPresent(
+            e ->
+                e.attributes.addAttribute(
+                    event.getName().getNamespaceURI(),
+                    event.getName().getLocalPart(),
+                    getQName(event.getName()),
+                    event.getDTDType(),
+                    event.getValue()));
   }
 
-
-
-  private void
-  writeCharacters(Characters event) throws XMLStreamException
-  {
+  private void writeCharacters(final Characters event) throws XMLStreamException {
     writeCharacters(event.getData());
   }
 
-
-
-  private void
-  writeCharacters(String s) throws XMLStreamException
-  {
-    try
-    {
+  private void writeCharacters(final String s) throws XMLStreamException {
+    try {
       flushPendingElement();
 
-      if (!elements.isEmpty())
-      {
+      if (!elements.isEmpty()) {
         handler.characters(s.toCharArray(), 0, s.length());
       }
-    }
-
-    catch (SAXException e)
-    {
+    } catch (SAXException e) {
       throw new XMLStreamException(e);
     }
   }
 
-
-
-  private void
-  writeComment(Comment event) throws XMLStreamException
-  {
-    try
-    {
+  private void writeComment() throws XMLStreamException {
+    try {
       flushPendingElement();
-    }
-
-    catch (SAXException e)
-    {
+    } catch (SAXException e) {
       throw new XMLStreamException(e);
     }
   }
 
-
-
-  private void
-  writeEndDocument(EndDocument event) throws XMLStreamException
-  {
-    try
-    {
+  private void writeEndDocument() throws XMLStreamException {
+    try {
       handler.endDocument();
-    }
-
-    catch (SAXException e)
-    {
+    } catch (SAXException e) {
       throw new XMLStreamException(e);
     }
   }
 
-
-
-  private void
-  writeEndElement(EndElement event) throws XMLStreamException
-  {
-    try
-    {
+  private void writeEndElement() throws XMLStreamException {
+    try {
       flushPendingElement();
 
-      Element	element = (Element) elements.pop();
+      final Element element = elements.pop();
 
-      handler.
-        endElement(element.namespaceURI, element.localName, element.qName);
-    }
-
-    catch (SAXException e)
-    {
+      handler.endElement(element.namespaceURI, element.localName, element.qName);
+    } catch (SAXException e) {
       throw new XMLStreamException(e);
     }
   }
 
-
-
-  private void
-  writeEntityReference(EntityReference event) throws XMLStreamException
-  {
+  private void writeEntityReference(final EntityReference event) throws XMLStreamException {
     writeCharacters("&" + event.getName() + ";");
   }
 
-
-
-  private void
-  writeNamespace(Namespace event) throws XMLStreamException
-  {
-    if
-    (
-      event.getPrefix() == null		||
-      event.getPrefix().equals("")	||
-      event.getPrefix().equals("xmlns")
-    )
-    {
-      ((Element) elements.peek()).attributes.addAttribute
-      (
-        XMLConstants.XMLNS_ATTRIBUTE_NS_URI,
-        XMLConstants.XMLNS_ATTRIBUTE,
-        XMLConstants.XMLNS_ATTRIBUTE,
-        "CDATA",
-        event.getNamespaceURI()
-      );
-    }
-    else
-    {
-      ((Element) elements.peek()).attributes.addAttribute
-      (
-        XMLConstants.XMLNS_ATTRIBUTE_NS_URI,
-        event.getPrefix(),
-        XMLConstants.XMLNS_ATTRIBUTE + ":" + event.getPrefix(),
-        "CDATA",
-        event.getNamespaceURI()
-      );
+  private void writeNamespace(final Namespace event) {
+    if (event.getPrefix() == null
+        || event.getPrefix().isEmpty()
+        || event.getPrefix().equals(XMLNS_ATTRIBUTE)) {
+      ofNullable(elements.peek())
+          .ifPresent(
+              e ->
+                  e.attributes.addAttribute(
+                      XMLNS_ATTRIBUTE_NS_URI,
+                      XMLNS_ATTRIBUTE,
+                      XMLNS_ATTRIBUTE,
+                      "CDATA",
+                      event.getNamespaceURI()));
+    } else {
+      ofNullable(elements.peek())
+          .ifPresent(
+              e ->
+                  e.attributes.addAttribute(
+                      XMLNS_ATTRIBUTE_NS_URI,
+                      event.getPrefix(),
+                      XMLNS_ATTRIBUTE + ":" + event.getPrefix(),
+                      "CDATA",
+                      event.getNamespaceURI()));
     }
   }
 
-
-
-  private void
-  writeProcessingInstruction(ProcessingInstruction event)
-    throws XMLStreamException
-  {
-    try
-    {
+  private void writeProcessingInstruction(final ProcessingInstruction event)
+      throws XMLStreamException {
+    try {
       flushPendingElement();
       handler.processingInstruction(event.getTarget(), event.getData());
-    }
-
-    catch (SAXException e)
-    {
+    } catch (SAXException e) {
       throw new XMLStreamException(e);
     }
   }
 
-
-
-  private void
-  writeStartDocument(StartDocument event) throws XMLStreamException
-  {
-    try
-    {
+  private void writeStartDocument() throws XMLStreamException {
+    try {
       handler.startDocument();
-    }
-
-    catch (SAXException e)
-    {
+    } catch (SAXException e) {
       throw new XMLStreamException(e);
     }
   }
 
-
-
-  private void
-  writeStartElement(StartElement event) throws XMLStreamException
-  {
-    try
-    {
+  private void writeStartElement(final StartElement event) throws XMLStreamException {
+    try {
       flushPendingElement();
 
-      elements.push
-      (
-        new Element
-        (
-          event.getName().getNamespaceURI(),
-          event.getName().getLocalPart(),
-          getQName(event.getName())
-        )
-      );
+      elements.push(
+          new Element(
+              event.getName().getNamespaceURI(),
+              event.getName().getLocalPart(),
+              getQName(event.getName())));
 
       pendingElement = true;
-
-      for (Iterator i = event.getNamespaces(); i.hasNext();)
-      {
-        writeNamespace((Namespace) i.next());
-      }
-
-      for (Iterator i = event.getAttributes(); i.hasNext();)
-      {
-        writeAttribute((Attribute) i.next());
-      }
-    }
-
-    catch (SAXException e)
-    {
+      stream(event.getNamespaces()).forEach(this::writeNamespace);
+      stream(event.getAttributes()).forEach(this::writeAttribute);
+    } catch (SAXException e) {
       throw new XMLStreamException(e);
     }
   }
 
+  private static class Element {
+    private final AttributesImpl attributes = new AttributesImpl();
+    private final String localName;
+    private final String namespaceURI;
+    private final String qName;
 
-
-  private static class Element
-
-  {
-
-    private AttributesImpl	attributes = new AttributesImpl();
-    private boolean		empty= false;
-    private String		localName;
-    private String		namespaceURI;
-    private String		qName;
-
-
-
-    private
-    Element(String namespaceURI, String localName, String qName)
-    {
+    private Element(final String namespaceURI, final String localName, final String qName) {
       this.namespaceURI = namespaceURI;
       this.localName = localName;
       this.qName = qName;
     }
-
-  } // Element
-
-} // ContentHandlerEventWriter
+  }
+}

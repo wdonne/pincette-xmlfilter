@@ -4,43 +4,25 @@ import org.xml.sax.SAXException;
 import org.xml.sax.XMLReader;
 import org.xml.sax.helpers.XMLFilterImpl;
 
-
-
 /**
- * Blocks the document events, which is useful for inlining another SAX source
- * in a SAX result.
- * @author Werner Donn\u00e9
+ * Blocks the document events, which is useful for inlining another SAX source in a SAX result.
+ *
+ * @author Werner Donné
  */
+public class GobbleDocumentEvents extends XMLFilterImpl {
+  public GobbleDocumentEvents() {}
 
-public class GobbleDocumentEvents extends XMLFilterImpl
-
-{
-
-  public
-  GobbleDocumentEvents()
-  {
-  }
-
-
-
-  public
-  GobbleDocumentEvents(XMLReader parent)
-  {
+  public GobbleDocumentEvents(final XMLReader parent) {
     super(parent);
   }
 
-
-
-  public void
-  endDocument() throws SAXException
-  {
+  @Override
+  public void endDocument() throws SAXException {
+    // Purpose of the class.
   }
 
-
-
-  public void
-  startDocument() throws SAXException
-  {
+  @Override
+  public void startDocument() throws SAXException {
+    // Purpose of the class.
   }
-
-} // GobbleDocumentEvents
+}

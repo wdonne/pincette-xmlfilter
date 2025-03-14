@@ -6,111 +6,58 @@ import javax.xml.stream.XMLStreamConstants;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.events.EntityDeclaration;
 
-
-
 /**
- * @author Werner Donn\u00e9
+ * @author Werner Donné
  */
+public class InternalEntityDeclaration extends XMLEventBase implements EntityDeclaration {
+  private final String name;
+  private final String text;
 
-public class InternalEntityDeclaration extends XMLEventBase
-  implements EntityDeclaration
-
-{
-
-  private String	name;
-  private String	text;
-
-
-
-  public
-  InternalEntityDeclaration(String name, String text)
-  {
+  public InternalEntityDeclaration(final String name, final String text) {
     this.name = name;
     this.text = text;
   }
 
-
-
-  private static String
-  escapeDoubleQuotes(String s)
-  {
-    return s.replaceAll("\"", "&quot;");
+  private static String escapeDoubleQuotes(final String s) {
+    return s.replace("\"", "&quot;");
   }
 
-
-
-  public String
-  getBaseURI()
-  {
+  public String getBaseURI() {
     return null;
   }
 
-
-
-  public int
-  getEventType()
-  {
+  @Override
+  public int getEventType() {
     return XMLStreamConstants.ENTITY_DECLARATION;
   }
 
-
-
-  public String
-  getName()
-  {
+  public String getName() {
     return name;
   }
 
-
-
-  public String
-  getNotationName()
-  {
+  public String getNotationName() {
     return null;
   }
 
-
-
-  public String
-  getPublicId()
-  {
+  public String getPublicId() {
     return null;
   }
 
-
-
-  public String
-  getReplacementText()
-  {
+  public String getReplacementText() {
     return text;
   }
 
-
-
-  public String
-  getSystemId()
-  {
+  public String getSystemId() {
     return null;
   }
 
-
-
-  public void
-  writeAsEncodedUnicode(Writer writer) throws XMLStreamException
-  {
-    try
-    {
-      writer.write
-      (
-        "<!ENTITY " + getName() + " \"" +
-          escapeDoubleQuotes(getReplacementText()) + "\">"
-      );
-    }
-
-    catch (IOException e)
-    {
+  @Override
+  public void writeAsEncodedUnicode(final Writer writer) throws XMLStreamException {
+    try {
+      writer.write(
+          "<!ENTITY " + getName() + " \"" + escapeDoubleQuotes(getReplacementText()) + "\">");
+    } catch (IOException e) {
       throw new XMLStreamException(e);
     }
   }
-
-} // InternalEntityDeclaration
+}

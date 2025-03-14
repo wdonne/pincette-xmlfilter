@@ -16,9 +16,9 @@ import javax.xml.transform.sax.TransformerHandler;
 import javax.xml.transform.stream.StreamResult;
 
 /**
- * An XMLEventReader wrapper around an TransformerHandler.
+ * An XMLEventReader wrapper around a TransformerHandler.
  *
- * @author Werner Donn\u00e9
+ * @author Werner Donné
  */
 public class TransformerHandlerEventReaderDelegate extends EventReaderDelegate {
   private final XMLInputFactory factory = XMLInputFactory.newFactory();
@@ -62,20 +62,21 @@ public class TransformerHandlerEventReaderDelegate extends EventReaderDelegate {
   @Override
   public boolean hasNext() {
     if (!initialized) {
-      tryToDoRethrow(() -> {
-        final XMLEventWriter writer = new ContentHandlerEventWriter(handler);
+      tryToDoRethrow(
+          () -> {
+            final XMLEventWriter writer = new ContentHandlerEventWriter(handler);
 
-        tmpFile = File.createTempFile("TransformerHandlerEventReaderDelegate.", ".xml");
-        tmpFile.deleteOnExit();
-        handler.setResult(new StreamResult(tmpFile));
-        writer.add(getParent());
-        writer.flush();
-        writer.close();
+            tmpFile = File.createTempFile("TransformerHandlerEventReaderDelegate.", ".xml");
+            tmpFile.deleteOnExit();
+            handler.setResult(new StreamResult(tmpFile));
+            writer.add(getParent());
+            writer.flush();
+            writer.close();
 
-        in = new FileInputStream(tmpFile);
-        reader = factory.createXMLEventReader(in);
-        initialized = true;
-      });
+            in = new FileInputStream(tmpFile);
+            reader = factory.createXMLEventReader(in);
+            initialized = true;
+          });
     }
 
     return reader.hasNext();

@@ -6,125 +6,65 @@ import javax.xml.stream.XMLEventWriter;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.events.XMLEvent;
 
-
-
 /**
  * Writes nothing.
- * @author Werner Donn\u00e9
+ *
+ * @author Werner Donné
  */
+public class EventWriterDelegate implements XMLEventWriter {
+  private XMLEventWriter writer;
 
-public class EventWriterDelegate implements XMLEventWriter
+  public EventWriterDelegate() {}
 
-{
-
-  private XMLEventWriter	writer;
-
-
-
-  public
-  EventWriterDelegate()
-  {
-  }
-
-
-
-  public
-  EventWriterDelegate(XMLEventWriter writer)
-  {
+  public EventWriterDelegate(final XMLEventWriter writer) {
     setParent(writer);
   }
 
-
-
-  public void
-  add(XMLEvent event) throws XMLStreamException
-  {
+  public void add(final XMLEvent event) throws XMLStreamException {
     writer.add(event);
   }
 
-
-
-  public void
-  add(XMLEventReader reader) throws XMLStreamException
-  {
-    while (reader.hasNext())
-    {
+  public void add(final XMLEventReader reader) throws XMLStreamException {
+    while (reader.hasNext()) {
       add(reader.nextEvent());
     }
 
     reader.close();
   }
 
-
-
-  public void
-  close() throws XMLStreamException
-  {
+  public void close() throws XMLStreamException {
     writer.close();
   }
 
-
-
-  public void
-  flush() throws XMLStreamException
-  {
+  public void flush() throws XMLStreamException {
     writer.flush();
   }
 
-
-
-  public NamespaceContext
-  getNamespaceContext()
-  {
+  public NamespaceContext getNamespaceContext() {
     return writer.getNamespaceContext();
   }
 
-
-
-  public XMLEventWriter
-  getParent()
-  {
+  public XMLEventWriter getParent() {
     return writer;
   }
 
-
-
-  public String
-  getPrefix(String uri) throws XMLStreamException
-  {
+  public String getPrefix(final String uri) throws XMLStreamException {
     return writer.getPrefix(uri);
   }
 
-
-
-  public void
-  setDefaultNamespace(String uri) throws XMLStreamException
-  {
+  public void setDefaultNamespace(final String uri) throws XMLStreamException {
     writer.setDefaultNamespace(uri);
   }
 
-
-
-  public void
-  setNamespaceContext(NamespaceContext context) throws XMLStreamException
-  {
+  public void setNamespaceContext(final NamespaceContext context) throws XMLStreamException {
     writer.setNamespaceContext(context);
   }
 
-
-
-  public void
-  setParent(XMLEventWriter writer)
-  {
+  public void setParent(final XMLEventWriter writer) {
     this.writer = writer;
   }
 
-
-
-  public void
-  setPrefix(String prefix, String uri) throws XMLStreamException
-  {
+  public void setPrefix(final String prefix, final String uri) throws XMLStreamException {
     writer.setPrefix(prefix, uri);
   }
-
-} // EventWriterDelegate
+}

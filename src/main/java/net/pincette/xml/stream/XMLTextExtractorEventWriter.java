@@ -8,128 +8,70 @@ import javax.xml.stream.XMLEventWriter;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.events.XMLEvent;
 
-
-
 /**
  * Writes the extracted text to the given writer.
- * @author Werner Donn\u00e9
+ *
+ * @author Werner Donné
  */
+public class XMLTextExtractorEventWriter implements XMLEventWriter {
+  private NamespaceContext context;
+  private final Writer writer;
 
-public class XMLTextExtractorEventWriter implements XMLEventWriter
-
-{
-
-  private NamespaceContext	context;
-  private Writer		writer;
-
-
-
-  public
-  XMLTextExtractorEventWriter(Writer writer)
-  {
+  public XMLTextExtractorEventWriter(final Writer writer) {
     this.writer = writer;
   }
 
-
-
-  public void
-  add(XMLEvent event) throws XMLStreamException
-  {
-    if (event.isCharacters())
-    {
-      try
-      {
+  public void add(final XMLEvent event) throws XMLStreamException {
+    if (event.isCharacters()) {
+      try {
         writer.write(event.asCharacters().getData());
-      }
-
-      catch (IOException e)
-      {
+      } catch (IOException e) {
         throw new XMLStreamException(e);
       }
     }
   }
 
-
-
-  public void
-  add(XMLEventReader reader) throws XMLStreamException
-  {
-    while (reader.hasNext())
-    {
+  public void add(final XMLEventReader reader) throws XMLStreamException {
+    while (reader.hasNext()) {
       add(reader.nextEvent());
     }
 
     reader.close();
   }
 
-
-
-  public void
-  close() throws XMLStreamException
-  {
-    try
-    {
+  public void close() throws XMLStreamException {
+    try {
       writer.close();
-    }
-
-    catch (IOException e)
-    {
+    } catch (IOException e) {
       throw new XMLStreamException(e);
     }
   }
 
-
-
-  public void
-  flush() throws XMLStreamException
-  {
-    try
-    {
+  public void flush() throws XMLStreamException {
+    try {
       writer.flush();
-    }
-
-    catch (IOException e)
-    {
+    } catch (IOException e) {
       throw new XMLStreamException(e);
     }
   }
 
-
-
-  public NamespaceContext
-  getNamespaceContext()
-  {
+  public NamespaceContext getNamespaceContext() {
     return context;
   }
 
-
-
-  public String
-  getPrefix(String uri) throws XMLStreamException
-  {
+  public String getPrefix(final String uri) throws XMLStreamException {
     return context.getPrefix(uri);
   }
 
-
-
-  public void
-  setDefaultNamespace(String uri) throws XMLStreamException
-  {
+  public void setDefaultNamespace(final String uri) throws XMLStreamException {
+    // Nothing to do.
   }
 
-
-
-  public void
-  setNamespaceContext(NamespaceContext context) throws XMLStreamException
-  {
+  public void setNamespaceContext(final NamespaceContext context) throws XMLStreamException {
     this.context = context;
   }
 
-
-
-  public void
-  setPrefix(String prefix, String uri) throws XMLStreamException
-  {
+  public void setPrefix(final String prefix, final String uri) throws XMLStreamException {
+    // Nothing to do.
   }
-
-} // XMLTextExtractorEventWriter
+}

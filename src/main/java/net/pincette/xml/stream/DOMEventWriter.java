@@ -1,12 +1,23 @@
 package net.pincette.xml.stream;
 
+import static javax.xml.stream.XMLStreamConstants.ATTRIBUTE;
+import static javax.xml.stream.XMLStreamConstants.CDATA;
+import static javax.xml.stream.XMLStreamConstants.CHARACTERS;
+import static javax.xml.stream.XMLStreamConstants.COMMENT;
+import static javax.xml.stream.XMLStreamConstants.END_DOCUMENT;
+import static javax.xml.stream.XMLStreamConstants.END_ELEMENT;
+import static javax.xml.stream.XMLStreamConstants.ENTITY_REFERENCE;
+import static javax.xml.stream.XMLStreamConstants.NAMESPACE;
+import static javax.xml.stream.XMLStreamConstants.PROCESSING_INSTRUCTION;
+import static javax.xml.stream.XMLStreamConstants.SPACE;
+import static javax.xml.stream.XMLStreamConstants.START_DOCUMENT;
+import static javax.xml.stream.XMLStreamConstants.START_ELEMENT;
 import static net.pincette.util.StreamUtil.stream;
 import static net.pincette.xml.stream.Util.events;
 import static net.pincette.xml.stream.Util.newDocument;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
-import java.util.Iterator;
 import java.util.Optional;
 import javax.xml.XMLConstants;
 import javax.xml.namespace.NamespaceContext;
@@ -27,11 +38,11 @@ import org.w3c.dom.Node;
 /**
  * Creates a DOM tree.
  *
- * @author Werner Donn\u00e9
+ * @author Werner Donné
  */
 public class DOMEventWriter implements XMLEventWriter {
-  private Document document;
-  private Deque<Node> elements = new ArrayDeque<>();
+  private final Document document;
+  private final Deque<Node> elements = new ArrayDeque<>();
 
   public DOMEventWriter() {
     this(null);
@@ -41,7 +52,7 @@ public class DOMEventWriter implements XMLEventWriter {
     this.document = document != null ? document : newDocument();
   }
 
-  private static Element addAttribute(final Element element, final Attribute attribute) {
+  private static void addAttribute(final Element element, final Attribute attribute) {
     element.setAttributeNS(
         "".equals(attribute.getName().getNamespaceURI())
             ? null
@@ -51,53 +62,47 @@ public class DOMEventWriter implements XMLEventWriter {
                 : (attribute.getName().getPrefix() + ":"))
             + attribute.getName().getLocalPart(),
         attribute.getValue());
-
-    return element;
   }
 
-  private static Element addNamespace(final Element element, final Namespace namespace) {
+  private static void addNamespace(final Element element, final Namespace namespace) {
     element.setAttributeNS(
         XMLConstants.XMLNS_ATTRIBUTE_NS_URI,
         XMLConstants.XMLNS_ATTRIBUTE
             + ("".equals(namespace.getPrefix()) ? "" : (":" + namespace.getPrefix())),
         namespace.getNamespaceURI());
-
-    return element;
   }
 
   public void add(final XMLEvent event) {
     switch (event.getEventType()) {
-      case XMLEvent.ATTRIBUTE:
+      case ATTRIBUTE:
         current()
-            .filter(c -> c instanceof Element)
+            .filter(Element.class::isInstance)
             .map(c -> (Element) c)
             .ifPresent(c -> addAttribute(c, (Attribute) event));
         break;
 
-      case XMLEvent.CDATA:
+      case CDATA:
         current()
             .ifPresent(
                 c -> c.appendChild(document.createCDATASection(event.asCharacters().getData())));
         break;
 
-      case XMLEvent.CHARACTERS:
-      case XMLEvent.SPACE:
+      case CHARACTERS, SPACE:
         current()
-            .filter(c -> c instanceof Element)
+            .filter(Element.class::isInstance)
             .ifPresent(c -> c.appendChild(document.createTextNode(event.asCharacters().getData())));
         break;
 
-      case XMLEvent.COMMENT:
+      case COMMENT:
         current()
             .ifPresent(c -> c.appendChild(document.createComment(((Comment) event).getText())));
         break;
 
-      case XMLEvent.END_DOCUMENT:
-      case XMLEvent.END_ELEMENT:
+      case END_DOCUMENT, END_ELEMENT:
         elements.pop();
         break;
 
-      case XMLEvent.ENTITY_REFERENCE:
+      case ENTITY_REFERENCE:
         current()
             .ifPresent(
                 c ->
@@ -105,14 +110,14 @@ public class DOMEventWriter implements XMLEventWriter {
                         document.createEntityReference(((EntityReference) event).getName())));
         break;
 
-      case XMLEvent.NAMESPACE:
+      case NAMESPACE:
         current()
-            .filter(c -> c instanceof Element)
+            .filter(Element.class::isInstance)
             .map(c -> (Element) c)
             .ifPresent(c -> addNamespace(c, (Namespace) event));
         break;
 
-      case XMLEvent.PROCESSING_INSTRUCTION:
+      case PROCESSING_INSTRUCTION:
         current()
             .ifPresent(
                 c ->
@@ -122,11 +127,11 @@ public class DOMEventWriter implements XMLEventWriter {
                             ((ProcessingInstruction) event).getData())));
         break;
 
-      case XMLEvent.START_DOCUMENT:
+      case START_DOCUMENT:
         elements.push(document);
         break;
 
-      case XMLEvent.START_ELEMENT:
+      case START_ELEMENT:
         current().ifPresent(c -> elements.push(addElement(c, event.asStartElement())));
         break;
 
@@ -149,13 +154,15 @@ public class DOMEventWriter implements XMLEventWriter {
             ("".equals(element.getName().getPrefix()) ? "" : (element.getName().getPrefix() + ":"))
                 + element.getName().getLocalPart());
 
-    stream((Iterator<Namespace>) element.getNamespaces()).forEach(n -> addNamespace(result, n));
-    stream((Iterator<Attribute>) element.getAttributes()).forEach(a -> addAttribute(result, a));
+    stream(element.getNamespaces()).forEach(n -> addNamespace(result, n));
+    stream(element.getAttributes()).forEach(a -> addAttribute(result, a));
 
     return (node != null ? node : document).appendChild(result);
   }
 
-  public void close() throws XMLStreamException {/* No resources. */}
+  public void close() throws XMLStreamException {
+    /* No resources. */
+  }
 
   public boolean complete() {
     return elements.isEmpty();
@@ -165,7 +172,9 @@ public class DOMEventWriter implements XMLEventWriter {
     return Optional.ofNullable(elements.isEmpty() ? null : elements.peek());
   }
 
-  public void flush() {/* No resources. */}
+  public void flush() {
+    /* No resources. */
+  }
 
   public Document getDocument() {
     return document;
@@ -175,13 +184,19 @@ public class DOMEventWriter implements XMLEventWriter {
     return null;
   }
 
-  public void setNamespaceContext(final NamespaceContext context) {/* Not supported. */}
+  public void setNamespaceContext(final NamespaceContext context) {
+    /* Not supported. */
+  }
 
   public String getPrefix(final String uri) {
     return null;
   }
 
-  public void setDefaultNamespace(final String uri) {/* Not supported. */}
+  public void setDefaultNamespace(final String uri) {
+    /* Not supported. */
+  }
 
-  public void setPrefix(final String prefix, final String uri) {/* Not supported. */}
+  public void setPrefix(final String prefix, final String uri) {
+    /* Not supported. */
+  }
 }

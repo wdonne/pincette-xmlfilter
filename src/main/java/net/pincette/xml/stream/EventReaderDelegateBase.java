@@ -13,7 +13,7 @@ import javax.xml.stream.util.EventReaderDelegate;
  * This class is a base class for filters. It makes sure that all event logic goes through its
  * <code>nextEvent</code> method. This way only this method should be overridden.
  *
- * @author Werner Donn\u00e9
+ * @author Werner Donné
  */
 public class EventReaderDelegateBase extends EventReaderDelegate {
   private XMLEvent currentEvent;

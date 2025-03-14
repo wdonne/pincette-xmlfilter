@@ -2,38 +2,22 @@ package net.pincette.xml.sax;
 
 import org.xml.sax.SAXException;
 
-
-
 /**
- * Can be used to distinguish a parsing error and a wanted interruption of the
- * parser.
- * @author Werner Donn\u00e9
+ * Can be used to distinguish a parsing error and a wanted interruption of the parser.
+ *
+ * @author Werner Donné
  */
+public class ParserInterrupt extends SAXException {
 
-public class ParserInterrupt extends SAXException
-
-{
-
-  public
-  ParserInterrupt(Exception e)
-  {
+  public ParserInterrupt(final Exception e) {
     super(e);
   }
 
-
-
-  public
-  ParserInterrupt(String message)
-  {
+  public ParserInterrupt(final String message) {
     super(message);
   }
 
-
-
-  public
-  ParserInterrupt(String message, Exception e)
-  {
+  public ParserInterrupt(final String message, final Exception e) {
     super(message, e);
   }
-
-} // ParserInterrupt
+}

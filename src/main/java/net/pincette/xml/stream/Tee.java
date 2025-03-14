@@ -5,112 +5,74 @@ import javax.xml.stream.XMLEventWriter;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.events.XMLEvent;
 
-
-
 /**
  * Replicates the output to additional writers.
- * @author Werner Donn\u00e9
+ *
+ * @author Werner Donné
  */
+public class Tee extends EventWriterDelegate {
+  private final XMLEventWriter[] writers;
 
-public class Tee extends EventWriterDelegate
-
-{
-
-  private XMLEventWriter[]	writers;
-
-
-
-  public
-  Tee(XMLEventWriter[] writers)
-  {
+  public Tee(final XMLEventWriter[] writers) {
     this(writers, null);
   }
 
-
-
-  public
-  Tee(XMLEventWriter[] writers, XMLEventWriter writer)
-  {
+  public Tee(final XMLEventWriter[] writers, final XMLEventWriter writer) {
     super(writer);
     this.writers = writers;
   }
 
-
-
-  public void
-  add(XMLEvent event) throws XMLStreamException
-  {
+  @Override
+  public void add(final XMLEvent event) throws XMLStreamException {
     super.add(event);
 
-    for (int i = 0; i < writers.length; ++i)
-    {
-      writers[i].add(event);
+    for (final XMLEventWriter writer : writers) {
+      writer.add(event);
     }
   }
 
-
-
-  public void
-  close() throws XMLStreamException
-  {
+  @Override
+  public void close() throws XMLStreamException {
     super.close();
 
-    for (int i = 0; i < writers.length; ++i)
-    {
-      writers[i].close();
+    for (final XMLEventWriter writer : writers) {
+      writer.close();
     }
   }
 
-
-
-  public void
-  flush() throws XMLStreamException
-  {
+  @Override
+  public void flush() throws XMLStreamException {
     super.flush();
 
-    for (int i = 0; i < writers.length; ++i)
-    {
-      writers[i].flush();
+    for (final XMLEventWriter writer : writers) {
+      writer.flush();
     }
   }
 
-
-
-  public void
-  setDefaultNamespace(String uri) throws XMLStreamException
-  {
+  @Override
+  public void setDefaultNamespace(final String uri) throws XMLStreamException {
     super.setDefaultNamespace(uri);
 
-    for (int i = 0; i < writers.length; ++i)
-    {
-      writers[i].setDefaultNamespace(uri);
+    for (final XMLEventWriter writer : writers) {
+      writer.setDefaultNamespace(uri);
     }
   }
 
-
-
-  public void
-  setNamespaceContext(NamespaceContext context) throws XMLStreamException
-  {
+  @Override
+  public void setNamespaceContext(final NamespaceContext context) throws XMLStreamException {
     super.setNamespaceContext(context);
 
-    for (int i = 0; i < writers.length; ++i)
-    {
-      writers[i].setNamespaceContext(context);
+    for (final XMLEventWriter writer : writers) {
+      writer.setNamespaceContext(context);
     }
   }
 
-
-
-  public void
-  setPrefix(String prefix, String uri) throws XMLStreamException
-  {
+  @Override
+  public void setPrefix(final String prefix, final String uri) throws XMLStreamException {
     super.setPrefix(prefix, uri);
 
-    for (int i = 0; i < writers.length; ++i)
-    {
-      writers[i].setPrefix(prefix, uri);
+    for (final XMLEventWriter writer : writers) {
+      writer.setPrefix(prefix, uri);
     }
   }
-
-} // Tee
+}

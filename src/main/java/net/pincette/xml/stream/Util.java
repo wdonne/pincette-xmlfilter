@@ -1,9 +1,15 @@
 package net.pincette.xml.stream;
 
 import static java.lang.System.arraycopy;
-import static java.util.stream.Collectors.toList;
+import static java.util.Optional.ofNullable;
 import static java.util.stream.Stream.concat;
 import static java.util.stream.Stream.of;
+import static javax.xml.XMLConstants.XMLNS_ATTRIBUTE_NS_URI;
+import static javax.xml.stream.XMLInputFactory.IS_NAMESPACE_AWARE;
+import static javax.xml.stream.XMLInputFactory.IS_REPLACING_ENTITY_REFERENCES;
+import static javax.xml.stream.XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES;
+import static javax.xml.stream.XMLInputFactory.IS_VALIDATING;
+import static javax.xml.stream.XMLInputFactory.SUPPORT_DTD;
 import static net.pincette.util.Pair.pair;
 import static net.pincette.util.Util.autoClose;
 import static net.pincette.util.Util.must;
@@ -23,8 +29,8 @@ import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.function.ToIntFunction;
 import java.util.stream.Stream;
-import javax.xml.XMLConstants;
 import javax.xml.namespace.QName;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.stream.XMLEventFactory;
@@ -50,14 +56,16 @@ import org.w3c.dom.Element;
 import org.w3c.dom.Entity;
 import org.w3c.dom.Node;
 
-/** @author Werner Donn\u00e9 */
+/**
+ * @author Werner Donné
+ */
 public class Util {
   private static final String UNEXPECTED = "Unexpected event type";
 
   private Util() {}
 
   public static Element accumulate(final XMLEventReader reader, final StartElement currentEvent) {
-    return Optional.ofNullable(newDocument())
+    return ofNullable(newDocument())
         .flatMap(document -> tryToGetRethrow(() -> accumulate(document, reader, currentEvent)))
         .map(Document::getDocumentElement)
         .orElse(null);
@@ -133,7 +141,6 @@ public class Util {
         .filter(XMLEvent::isStartElement)
         .map(XMLEvent::asStartElement)
         .map(StartElement::getAttributes)
-        .map(a -> (Iterator<Attribute>) a)
         .map(StreamUtil::stream)
         .orElseGet(Stream::empty);
   }
@@ -142,18 +149,14 @@ public class Util {
       final StartElement event, final Function<StartElement, Stream<Attribute>> newAttributes) {
     return XMLEventFactory.newFactory()
         .createStartElement(
-            event.getName(),
-            newAttributes.apply(event).collect(toList()).iterator(),
-            event.getNamespaces());
+            event.getName(), newAttributes.apply(event).toList().iterator(), event.getNamespaces());
   }
 
   public static StartElement changeNamespaces(
       final StartElement event, final Function<StartElement, Stream<Namespace>> newNamespaces) {
     return XMLEventFactory.newFactory()
         .createStartElement(
-            event.getName(),
-            event.getNamespaces(),
-            newNamespaces.apply(event).collect(toList()).iterator());
+            event.getName(), event.getNamespaces(), newNamespaces.apply(event).toList().iterator());
   }
 
   static Node clearNode(final Node node) {
@@ -178,8 +181,7 @@ public class Util {
                 : ("&" + e.getName() + ";");
 
     return new String(
-        events
-            .stream()
+        events.stream()
             .map(
                 e ->
                     e.isCharacters()
@@ -219,7 +221,7 @@ public class Util {
         net.pincette.xml.Util.attributes(element)
             .filter(Util::isNamescape)
             .map(a -> createNamespace(a, factory))
-            .collect(toList())
+            .toList()
             .iterator());
   }
 
@@ -229,7 +231,7 @@ public class Util {
 
   public static EntityReference createEntityReference(
       final org.w3c.dom.EntityReference ref, final XMLEventFactory factory) {
-    return Optional.ofNullable(ref.getOwnerDocument().getDoctype())
+    return ofNullable(ref.getOwnerDocument().getDoctype())
         .flatMap(
             docType ->
                 stream(docType.getEntities())
@@ -303,12 +305,12 @@ public class Util {
       }
     }
 
-    return builder.toString().replaceAll("\\]\\]>", "&#x5d;&#x5d;&gt;");
+    return builder.toString().replace("]]>", "&#x5d;&#x5d;&gt;");
   }
 
   public static Stream<XMLEvent> events(final XMLEventReader reader) {
     return net.pincette.util.StreamUtil.stream(
-        new Iterator<XMLEvent>() {
+        new Iterator<>() {
           private boolean another;
 
           @Override
@@ -330,7 +332,7 @@ public class Util {
   }
 
   public static Optional<String> getAttribute(final StartElement event, final QName name) {
-    return Optional.ofNullable(event.getAttributeByName(name)).map(Attribute::getValue);
+    return ofNullable(event.getAttributeByName(name)).map(Attribute::getValue);
   }
 
   public static XMLEventReader getCloseInputStreamEventReader(
@@ -372,25 +374,24 @@ public class Util {
                                 || e.isProcessingInstruction()
                                 || e.getEventType() == XMLStreamConstants.COMMENT))
             .filter(e -> e.isCharacters() || e.isEntityReference())
-            .collect(toList()),
+            .toList(),
         entityDeclarations);
   }
 
   private static int getLength(
       final List<XMLEvent> events, final Map<String, String> entityDeclarations) {
-    final Function<EntityReference, Integer> tryEntity =
+    final ToIntFunction<EntityReference> tryEntity =
         e ->
             entityDeclarations != null && entityDeclarations.get(e.getName()) != null
                 ? (entityDeclarations.get(e.getName())).length()
                 : (e.getName().length() + 2);
 
-    return events
-        .stream()
+    return events.stream()
         .mapToInt(
             e ->
                 e.isCharacters()
                     ? e.asCharacters().getData().length()
-                    : tryEntity.apply((EntityReference) e))
+                    : tryEntity.applyAsInt((EntityReference) e))
         .sum();
   }
 
@@ -423,7 +424,7 @@ public class Util {
   }
 
   public static boolean isNamescape(final Attr attribute) {
-    return XMLConstants.XMLNS_ATTRIBUTE_NS_URI.equals(attribute.getNamespaceURI());
+    return XMLNS_ATTRIBUTE_NS_URI.equals(attribute.getNamespaceURI());
   }
 
   public static boolean isStart(
@@ -442,7 +443,6 @@ public class Util {
                 e.isStartElement()
                     ? e.asStartElement().getNamespaces()
                     : e.asEndElement().getNamespaces())
-        .map(a -> (Iterator<Namespace>) a)
         .map(StreamUtil::stream)
         .orElseGet(Stream::empty);
   }
@@ -456,11 +456,11 @@ public class Util {
   public static XMLInputFactory newInputFactory(final boolean validating, final boolean expanding) {
     final XMLInputFactory result = XMLInputFactory.newFactory();
 
-    result.setProperty(XMLInputFactory.SUPPORT_DTD, true);
-    result.setProperty(XMLInputFactory.IS_VALIDATING, validating);
-    result.setProperty(XMLInputFactory.IS_NAMESPACE_AWARE, true);
-    result.setProperty(XMLInputFactory.IS_REPLACING_ENTITY_REFERENCES, expanding);
-    result.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, true);
+    result.setProperty(SUPPORT_DTD, true);
+    result.setProperty(IS_VALIDATING, validating);
+    result.setProperty(IS_NAMESPACE_AWARE, true);
+    result.setProperty(IS_REPLACING_ENTITY_REFERENCES, expanding);
+    result.setProperty(IS_SUPPORTING_EXTERNAL_ENTITIES, true);
 
     return result;
   }
@@ -507,7 +507,7 @@ public class Util {
 
   public static Stream<Namespace> withoutNamespace(final StartElement event, final QName name) {
     return attributes(event)
-        .filter(a -> a instanceof Namespace)
+        .filter(Namespace.class::isInstance)
         .filter(a -> !name.equals(a.getName()))
         .map(a -> (Namespace) a);
   }

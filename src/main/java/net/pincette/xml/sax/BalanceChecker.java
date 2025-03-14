@@ -14,6 +14,9 @@ import org.xml.sax.SAXException;
 import org.xml.sax.XMLReader;
 import org.xml.sax.helpers.XMLFilterImpl;
 
+/**
+ * @author Werner Donné
+ */
 public class BalanceChecker extends XMLFilterImpl {
   private final Deque<QName> elements = new ArrayDeque<>();
   private final File file;
@@ -45,23 +48,23 @@ public class BalanceChecker extends XMLFilterImpl {
     final QName element = new QName(namespaceURI, localName);
 
     if (elements.isEmpty()) {
-      write("Closing " + element.toString() + " while no open elements are left.");
+      write("Closing " + element + " while no open elements are left.");
     } else {
       final QName name = elements.pop();
 
       if (!name.equals(element)) {
-        write("Closing " + element.toString() + " while expecting " + name.toString() + ".");
+        write("Closing " + element + " while expecting " + name + ".");
       }
     }
 
     indent -= 2;
-    write("</" + element.toString() + ">");
+    write("</" + element + ">");
     super.endElement(namespaceURI, localName, qName);
   }
 
   private void openWriter() {
     if (out == null) {
-        out = tryToGetRethrow(() -> new PrintStream(new FileOutputStream(file))).orElse(null);
+      out = tryToGetRethrow(() -> new PrintStream(new FileOutputStream(file))).orElse(null);
     }
   }
 
@@ -79,7 +82,7 @@ public class BalanceChecker extends XMLFilterImpl {
 
     final QName name = new QName(namespaceURI, localName);
 
-    write("<" + name.toString() + ">");
+    write("<" + name + ">");
     indent += 2;
     elements.push(name);
     super.startElement(namespaceURI, localName, qName, atts);

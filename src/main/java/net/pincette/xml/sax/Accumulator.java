@@ -1,10 +1,14 @@
 package net.pincette.xml.sax;
 
+import static java.util.Optional.ofNullable;
+import static net.pincette.util.Util.tryToGetRethrow;
+import static net.pincette.xml.Util.secureDocumentBuilderFactory;
+
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Stack;
 import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -16,250 +20,104 @@ import org.xml.sax.XMLFilter;
 import org.xml.sax.XMLReader;
 import org.xml.sax.helpers.XMLFilterImpl;
 
-
-
 /**
- * With this class a SAX stream can be accumulated in a DOM document. An
- * instance of it can be reused. The client must call
- * <code>startDocument</code> and <code>endDocument</code>.
- * @author Werner Donn\u00e9
+ * With this class, a SAX stream can be accumulated in a DOM document. An instance of it can be
+ * reused. The client must call <code>startDocument</code> and <code>endDocument</code>.
+ *
+ * @author Werner Donné
  */
+public class Accumulator extends XMLFilterImpl {
+  private static final DocumentBuilder documentBuilder = createDocumentBuilder();
 
-public class Accumulator extends XMLFilterImpl
+  private Node currentNode = null;
+  private Document document = null;
+  private final Deque<Map<String, String>> prefixMappings = new ArrayDeque<>();
+  private Result result = null;
 
-{
-
-  private static final DocumentBuilder	documentBuilder =
-    createDocumentBuilder();
-
-  private Node				currentNode = null;
-  private Document			document = null;
-  private Stack<Map<String,String>>	prefixMappings =
-    new Stack<Map<String,String>>();
-  private Result			result = null;
-
-
-
-  public
-  Accumulator()
-  {
-    this((Document) null, (Result) null);
+  public Accumulator() {
+    this(null, (Result) null);
   }
 
-
-
-  public
-  Accumulator(XMLReader parent)
-  {
-    this((Document) null, (Result) null, parent);
+  public Accumulator(final XMLReader parent) {
+    this(null, null, parent);
   }
 
-
-
-  public
-  Accumulator(Result result)
-  {
-    this((Document) null, result);
+  public Accumulator(final Result result) {
+    this(null, result);
   }
 
-
-
-  public
-  Accumulator(Result result, XMLReader parent)
-  {
-    this((Document) null, result, parent);
+  public Accumulator(final Result result, final XMLReader parent) {
+    this(null, result, parent);
   }
 
-
-
-  public
-  Accumulator(Document document)
-  {
+  public Accumulator(final Document document) {
     this.document = document;
   }
 
-
-
-  public
-  Accumulator(Document document, XMLReader parent)
-  {
+  public Accumulator(final Document document, final XMLReader parent) {
     super(parent);
     this.document = document;
   }
 
-
-
-  public
-  Accumulator(Document document, Result result)
-  {
+  public Accumulator(final Document document, final Result result) {
     this.document = document;
     this.result = result;
   }
 
-
-
-  public
-  Accumulator(Document document, Result result, XMLReader parent)
-  {
+  public Accumulator(final Document document, final Result result, final XMLReader parent) {
     super(parent);
     this.document = document;
     this.result = result;
   }
 
-
-
-  public void
-  characters(char[] ch, int start, int length) throws SAXException
-  {
-    currentNode.
-      appendChild(document.createTextNode(new String(ch, start, length)));
+  private static DocumentBuilder createDocumentBuilder() {
+    return tryToGetRethrow(() -> secureDocumentBuilderFactory().newDocumentBuilder()).orElse(null);
   }
-
-
-
-  private static DocumentBuilder
-  createDocumentBuilder()
-  {
-    try
-    {
-      return DocumentBuilderFactory.newInstance().newDocumentBuilder();
-    }
-
-    catch (Exception e)
-    {
-      throw new RuntimeException(e);
-    }
-  }
-
-
-
-  public void
-  endDocument() throws SAXException
-  {
-    prefixMappings.pop();
-    currentNode = null;
-  }
-
-
-
-  public void
-  endElement(String namespaceURI, String localName, String qName)
-    throws SAXException
-  {
-    prefixMappings.pop();
-    currentNode = currentNode.getParentNode();
-
-    if (result != null && currentNode == document)
-    {
-      result.report(this);
-    }
-  }
-
-
-
-  public void
-  endPrefixMapping(String prefix) throws SAXException
-  {
-    ((Map) prefixMappings.peek()).remove(prefix);
-  }
-
-
-
-  public Document
-  getDocument()
-  {
-    return document;
-  }
-
-
-
-  public void
-  ignorableWhitespace(char[] ch, int start, int length) throws SAXException
-  {
-  }
-
-
 
   /**
-   * This installs an accumulator after <code>filter</code>. You would call it
-   * in <code>startElement</code>, before you let the event go through.
+   * This installs an accumulator after <code>filter</code>. You would call it in <code>startElement
+   * </code>, before you let the event go through.
    */
-
-  public static void
-  postAccumulate(XMLFilter filter, ProcessElement process) throws SAXException
-  {
-    final XMLFilter		f = filter;
-    final ContentHandler	handler =
-      filter.getContentHandler();
-    final ProcessElement	p = process;
-    Accumulator			accumulator =
-      new Accumulator
-      (
-        documentBuilder.newDocument(),
-        new Result()
-        {
-          public void
-          report(Accumulator accumulator) throws SAXException
-          {
-            f.setContentHandler
-            (
-              handler != null ? handler : new XMLFilterImpl()
-            );
-
-            p.process(accumulator.getDocument().getDocumentElement(), f);
-            accumulator.endDocument();
-          }
-        }
-      );
+  public static void postAccumulate(final XMLFilter filter, final ProcessElement process) {
+    final ContentHandler handler = filter.getContentHandler();
+    final Accumulator accumulator =
+        new Accumulator(
+            documentBuilder.newDocument(),
+            acc -> {
+              filter.setContentHandler(ofNullable(handler).orElseGet(XMLFilterImpl::new));
+              process.process(acc.getDocument().getDocumentElement(), filter);
+              acc.endDocument();
+            });
 
     filter.setContentHandler(accumulator);
     accumulator.setParent(filter);
     accumulator.startDocument();
   }
 
-
-
   /**
-   * This installs an accumulator before <code>filter</code>. You would call it
-   * in <code>startElement</code>, and initialize it with the incoming event,
-   * which you don't let go through.
+   * This installs an accumulator before <code>filter</code>. You would call it in <code>
+   * startElement</code>, and initialize it with the incoming event, which you don't let go through.
    */
-
-  public static void
-  preAccumulate
-  (
-    String		namespaceURI,
-    String		localName,
-    String		qName,
-    Attributes		atts,
-    XMLFilter		filter,
-    ProcessElement	process
-  ) throws SAXException
-  {
-    if (filter.getParent() == null)
-    {
+  public static void preAccumulate(
+      final String namespaceURI,
+      final String localName,
+      final String qName,
+      final Attributes atts,
+      final XMLFilter filter,
+      final ProcessElement process) {
+    if (filter.getParent() == null) {
       return;
     }
 
-    final XMLFilter		f = filter;
-    final ContentHandler	handler =
-      filter.getParent().getContentHandler();
-    final ProcessElement	p = process;
-    final Accumulator		accumulator =
-      new Accumulator
-      (
-        documentBuilder.newDocument(),
-        new Result()
-        {
-          public void
-          report(Accumulator accumulator) throws SAXException
-          {
-            p.process(accumulator.getDocument().getDocumentElement(), f);
-            accumulator.endDocument();
-            f.getParent().setContentHandler(handler);
-          }
-        }
-      );
+    final ContentHandler handler = filter.getParent().getContentHandler();
+    final Accumulator accumulator =
+        new Accumulator(
+            documentBuilder.newDocument(),
+            acc -> {
+              process.process(acc.getDocument().getDocumentElement(), filter);
+              acc.endDocument();
+              filter.getParent().setContentHandler(handler);
+            });
 
     filter.getParent().setContentHandler(accumulator);
     accumulator.setParent(filter.getParent());
@@ -267,146 +125,119 @@ public class Accumulator extends XMLFilterImpl
     accumulator.startElement(namespaceURI, localName, qName, atts);
   }
 
-
-
-  public void
-  processingInstruction(String target, String data) throws SAXException
-  {
-    currentNode.appendChild(document.createProcessingInstruction(target, data));
-  }
-
-
-
-  public void
-  setDocumentLocator(Locator locator)
-  {
-  }
-
-
-
-  private static void
-  setAttributes(Element element, Attributes atts)
-  {
-    for (int i = 0; i < atts.getLength(); ++i)
-    {
-      if (atts.getURI(i) == null || "".equals(atts.getURI(i)))
-      {
+  private static void setAttributes(final Element element, final Attributes atts) {
+    for (int i = 0; i < atts.getLength(); ++i) {
+      if (atts.getURI(i) == null || "".equals(atts.getURI(i))) {
         element.setAttribute(atts.getQName(i), atts.getValue(i));
 
-        if ("ID".equals(atts.getType(i)))
-        {
+        if ("ID".equals(atts.getType(i))) {
           element.setIdAttribute(atts.getQName(i), true);
         }
-      }
-      else
-      {
-        element.
-          setAttributeNS(atts.getURI(i), atts.getQName(i), atts.getValue(i));
+      } else {
+        element.setAttributeNS(atts.getURI(i), atts.getQName(i), atts.getValue(i));
 
-        if ("ID".equals(atts.getType(i)))
-        {
+        if ("ID".equals(atts.getType(i))) {
           element.setIdAttributeNS(atts.getURI(i), atts.getLocalName(i), true);
         }
       }
     }
   }
 
+  private static void setPrefixMappings(final Element element, final Map<String, String> mappings) {
+    mappings.forEach((k, v) -> element.setAttribute("".equals(k) ? "xmlns" : ("xmlns:" + k), v));
+  }
 
+  @Override
+  public void characters(final char[] ch, final int start, final int length) {
+    currentNode.appendChild(document.createTextNode(new String(ch, start, length)));
+  }
 
-  private static void
-  setPrefixMappings(Element element, Map<String,String> mappings)
-  {
-    for (String prefix: mappings.keySet())
-    {
-      element.setAttribute
-      (
-        "".equals(prefix) ? "xmlns" : ("xmlns:" + prefix),
-        mappings.get(prefix)
-      );
+  @Override
+  public void endDocument() {
+    prefixMappings.pop();
+    currentNode = null;
+  }
+
+  @Override
+  public void endElement(final String namespaceURI, final String localName, final String qName)
+      throws SAXException {
+    prefixMappings.pop();
+    currentNode = currentNode.getParentNode();
+
+    if (result != null && currentNode == document) {
+      result.report(this);
     }
   }
 
-
-
-  public void
-  skippedEntity(String name) throws SAXException
-  {
+  @Override
+  public void endPrefixMapping(final String prefix) {
+    ofNullable(prefixMappings.peek()).ifPresent(m -> m.remove(prefix));
   }
 
+  public Document getDocument() {
+    return document;
+  }
 
+  @Override
+  public void ignorableWhitespace(final char[] ch, final int start, final int length) {
+    // Ignoring.
+  }
 
-  public void
-  startDocument() throws SAXException
-  {
-    if (document == null)
-    {
-      try
-      {
-        document = documentBuilder.newDocument();
-      }
+  @Override
+  public void processingInstruction(final String target, final String data) {
+    currentNode.appendChild(document.createProcessingInstruction(target, data));
+  }
 
-      catch (Exception e)
-      {
-        throw new SAXException(e);
-      }
-    }
-    else
-    {
-      if (document.getDocumentElement() != null)
-      {
-        document.removeChild(document.getDocumentElement());
-      }
+  @Override
+  public void setDocumentLocator(final Locator locator) {
+    // Not needed.
+  }
+
+  @Override
+  public void skippedEntity(final String name) {
+    // Not needed.
+  }
+
+  @Override
+  public void startDocument() {
+    if (document == null) {
+      document = tryToGetRethrow(documentBuilder::newDocument).orElse(null);
+    } else if (document.getDocumentElement() != null) {
+      document.removeChild(document.getDocumentElement());
     }
 
     currentNode = document;
-    prefixMappings.push(new HashMap<String,String>());
+    prefixMappings.push(new HashMap<>());
   }
 
-
-
-  public void
-  startElement
-  (
-    String	namespaceURI,
-    String	localName,
-    String	qName,
-    Attributes	atts
-  ) throws SAXException
-  {
-    final Element	element =
-      document.
-        createElementNS("".equals(namespaceURI) ? null : namespaceURI, qName);
+  @Override
+  public void startElement(
+      final String namespaceURI,
+      final String localName,
+      final String qName,
+      final Attributes atts) {
+    final Element element =
+        document.createElementNS("".equals(namespaceURI) ? null : namespaceURI, qName);
 
     setAttributes(element, atts);
-    setPrefixMappings(element, prefixMappings.peek());
-    prefixMappings.push(new HashMap<String,String>());
+    setPrefixMappings(element, ofNullable(prefixMappings.peek()).orElseGet(HashMap::new));
+    prefixMappings.push(new HashMap<>());
     currentNode.appendChild(element);
     currentNode = element;
   }
 
-
-
-  public void
-  startPrefixMapping(String prefix, String uri) throws SAXException
-  {
-    prefixMappings.peek().put(prefix, uri);
+  @Override
+  public void startPrefixMapping(final String prefix, final String uri) {
+    ofNullable(prefixMappings.peek()).ifPresent(m -> m.put(prefix, uri));
   }
 
-
-
-  public interface ProcessElement
-
-  {
-
-    public void	process	(Element element, XMLFilter filter) throws SAXException;
-
-  } // ProcessElement
-
-
-
-  public interface Result
-  {
-    public void	report	(Accumulator accumulator) throws SAXException;
+  @FunctionalInterface
+  public interface ProcessElement {
+    void process(Element element, XMLFilter filter) throws SAXException;
   }
 
-} // Accumulator
+  @FunctionalInterface
+  public interface Result {
+    void report(Accumulator accumulator) throws SAXException;
+  }
+}

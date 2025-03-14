@@ -47,7 +47,7 @@ public class XhtmlImageInliner extends EventReaderDelegateBase {
 
               copy(connection.getInputStream(), new Base64OutputStream(out));
 
-              return "data:" + type + ";base64," + new String(out.toByteArray(), US_ASCII);
+              return "data:" + type + ";base64," + out.toString(US_ASCII);
             })
         .orElse(url);
   }

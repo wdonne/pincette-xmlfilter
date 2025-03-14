@@ -1,39 +1,22 @@
 package net.pincette.xml.sax;
 
-import org.xml.sax.SAXException;
 import org.xml.sax.SAXParseException;
 
-
-
-public class DevNullErrorHandler implements org.xml.sax.ErrorHandler
-
-{
-
-  public void
-  error(SAXParseException exception) throws SAXException
-  {
+/**
+ * Reports nothing.
+ *
+ * @author Werner Donné
+ */
+public class DevNullErrorHandler implements org.xml.sax.ErrorHandler {
+  public void error(final SAXParseException exception) {
+    // Purpose of the class.
   }
 
-
-
-  public void
-  fatalError(SAXParseException exception) throws SAXException
-  {
+  public void fatalError(final SAXParseException exception) {
+    // Purpose of the class.
   }
 
-
-
-  private String
-  getMessage(SAXParseException e)
-  {
-    return null;
+  public void warning(final SAXParseException exception) {
+    // Purpose of the class.
   }
-
-
-
-  public void
-  warning(SAXParseException exception) throws SAXException
-  {
-  }
-
-} // DevNullErrorHandler
+}

@@ -16,7 +16,7 @@ import javax.xml.stream.events.XMLEvent;
 /**
  * Replaces occurrences of ${name} with the value in <code>parameters</code>.
  *
- * @author Werner Donn\u00e9
+ * @author Werner Donné
  */
 public class ReplaceParametersEventReader extends EventReaderDelegateBase {
   private final XMLEventFactory factory = XMLEventFactory.newInstance();
@@ -45,6 +45,7 @@ public class ReplaceParametersEventReader extends EventReaderDelegateBase {
     this.leave = leave;
   }
 
+  @Override
   public XMLEvent nextEvent() throws XMLStreamException {
     final XMLEvent event = super.nextEvent();
     final Supplier<XMLEvent> startElementOr =

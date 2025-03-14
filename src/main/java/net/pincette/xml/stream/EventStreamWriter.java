@@ -16,13 +16,13 @@ import javax.xml.stream.events.Namespace;
 /**
  * An XMLStreamWriter wrapper around an XMLEventWriter.
  *
- * @author Werner Donn\u00e9
+ * @author Werner Donné
  */
 public class EventStreamWriter implements XMLStreamWriter {
   private final Deque<Element> elements = new ArrayDeque<>();
   private final XMLEventFactory factory = XMLEventFactory.newFactory();
   private Element pendingElement;
-  private XMLEventWriter writer;
+  private final XMLEventWriter writer;
 
   public EventStreamWriter(final XMLEventWriter writer) {
     this.writer = writer;

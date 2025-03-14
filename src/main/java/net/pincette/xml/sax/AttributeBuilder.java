@@ -4,9 +4,9 @@ import org.xml.sax.Attributes;
 import org.xml.sax.helpers.AttributesImpl;
 
 /**
- * A chained builder voor SAX attribute sets.
+ * A chained builder for SAX attribute sets.
  *
- * @author Werner Donn\u00e9
+ * @author Werner Donné
  */
 public class AttributeBuilder {
   private final AttributesImpl atts;

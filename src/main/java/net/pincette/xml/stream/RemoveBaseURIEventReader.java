@@ -1,6 +1,7 @@
 package net.pincette.xml.stream;
 
-import javax.xml.XMLConstants;
+import static javax.xml.XMLConstants.XML_NS_URI;
+
 import javax.xml.namespace.QName;
 import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLStreamException;
@@ -10,10 +11,10 @@ import javax.xml.stream.events.XMLEvent;
 /**
  * Removes the xml:base attribute if <code>baseURI</code> is not <code>null</code>.
  *
- * @author Werner Donn\u00e9
+ * @author Werner Donné
  */
 public class RemoveBaseURIEventReader extends EventReaderDelegateBase {
-  private String baseURI;
+  private final String baseURI;
   private XMLEvent peeked;
 
   public RemoveBaseURIEventReader(final String baseURI) {
@@ -25,10 +26,12 @@ public class RemoveBaseURIEventReader extends EventReaderDelegateBase {
     this.baseURI = baseURI;
   }
 
+  @Override
   public boolean hasNext() {
     return peeked != null || super.hasNext();
   }
 
+  @Override
   public XMLEvent nextEvent() throws XMLStreamException {
     if (peeked != null) {
       final XMLEvent result = peeked;
@@ -41,6 +44,7 @@ public class RemoveBaseURIEventReader extends EventReaderDelegateBase {
     return process(super.nextEvent());
   }
 
+  @Override
   public XMLEvent peek() throws XMLStreamException {
     if (peeked == null) {
       peeked = process(super.nextEvent());
@@ -49,14 +53,13 @@ public class RemoveBaseURIEventReader extends EventReaderDelegateBase {
     return peeked;
   }
 
-  private XMLEvent process(final XMLEvent event) throws XMLStreamException {
+  private XMLEvent process(final XMLEvent event) {
     if (baseURI != null && event.isStartElement()) {
       final Attribute attribute =
-          event.asStartElement().getAttributeByName(new QName(XMLConstants.XML_NS_URI, "base"));
+          event.asStartElement().getAttributeByName(new QName(XML_NS_URI, "base"));
 
       if (attribute != null && baseURI.equals(attribute.getValue())) {
-        return Util.removeAttribute(
-            event.asStartElement(), new QName(XMLConstants.XML_NS_URI, "base"));
+        return Util.removeAttribute(event.asStartElement(), new QName(XML_NS_URI, "base"));
       }
     }
 

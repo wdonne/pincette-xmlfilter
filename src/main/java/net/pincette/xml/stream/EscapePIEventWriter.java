@@ -1,5 +1,16 @@
 package net.pincette.xml.stream;
 
+import static javax.xml.XMLConstants.DEFAULT_NS_PREFIX;
+import static javax.xml.stream.XMLStreamConstants.CDATA;
+import static javax.xml.stream.XMLStreamConstants.CHARACTERS;
+import static javax.xml.stream.XMLStreamConstants.COMMENT;
+import static javax.xml.stream.XMLStreamConstants.DTD;
+import static javax.xml.stream.XMLStreamConstants.END_ELEMENT;
+import static javax.xml.stream.XMLStreamConstants.ENTITY_REFERENCE;
+import static javax.xml.stream.XMLStreamConstants.PROCESSING_INSTRUCTION;
+import static javax.xml.stream.XMLStreamConstants.SPACE;
+import static javax.xml.stream.XMLStreamConstants.START_DOCUMENT;
+import static javax.xml.stream.XMLStreamConstants.START_ELEMENT;
 import static net.pincette.util.Pair.pair;
 import static net.pincette.util.Util.tryToDoRethrow;
 import static net.pincette.xml.stream.Util.attributes;
@@ -19,7 +30,6 @@ import javax.xml.namespace.NamespaceContext;
 import javax.xml.namespace.QName;
 import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLEventWriter;
-import javax.xml.stream.XMLStreamConstants;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.events.Attribute;
 import javax.xml.stream.events.Characters;
@@ -59,29 +69,24 @@ public class EscapePIEventWriter implements XMLEventWriter {
   }
 
   private static String getName(final QName name) {
-    return (name.getPrefix() != null && !XMLConstants.DEFAULT_NS_PREFIX.equals(name.getPrefix())
+    return (name.getPrefix() != null && !DEFAULT_NS_PREFIX.equals(name.getPrefix())
             ? (name.getPrefix() + ":")
             : "")
         + name.getLocalPart();
   }
 
   private static String getReplacementText(final EntityReference event) {
-    switch (event.getName()) {
-      case "amp":
-        return "&";
-      case "apos":
-        return "'";
-      case "gt":
-        return ">";
-      case "lt":
-        return "<";
-      case "quot":
-        return "\"";
-      default:
-        return event.getDeclaration() != null
-            ? event.getDeclaration().getReplacementText()
-            : ("&" + event.getName() + ";");
-    }
+    return switch (event.getName()) {
+      case "amp" -> "&";
+      case "apos" -> "'";
+      case "gt" -> ">";
+      case "lt" -> "<";
+      case "quot" -> "\"";
+      default ->
+          event.getDeclaration() != null
+              ? event.getDeclaration().getReplacementText()
+              : ("&" + event.getName() + ";");
+    };
   }
 
   public void add(final XMLEvent event) throws XMLStreamException {
@@ -89,32 +94,27 @@ public class EscapePIEventWriter implements XMLEventWriter {
         && "javax.xml.transform.disable-output-escaping"
             .equals(((ProcessingInstruction) event).getTarget())) {
       escape = false;
-    } else {
-      if (event.isProcessingInstruction()
-          && "javax.xml.transform.enable-output-escaping"
-              .equals(((ProcessingInstruction) event).getTarget())) {
-        escape = true;
-      } else {
-        if (event.isStartElement()) {
-          Optional.ofNullable(prefixMappings.peek())
-              .ifPresent(
-                  list ->
-                      list.forEach(
-                          mapping -> prefixMap.startPrefixMapping(mapping.first, mapping.second)));
+    } else if (event.isProcessingInstruction()
+        && "javax.xml.transform.enable-output-escaping"
+            .equals(((ProcessingInstruction) event).getTarget())) {
+      escape = true;
+    } else if (event.isStartElement()) {
+      Optional.ofNullable(prefixMappings.peek())
+          .ifPresent(
+              list ->
+                  list.forEach(
+                      mapping -> prefixMap.startPrefixMapping(mapping.first, mapping.second)));
 
-          prefixMappings.push(new ArrayList<>());
-        }
+      prefixMappings.push(new ArrayList<>());
+    }
 
-        writeEvent(event);
+    writeEvent(event);
 
-        if (event.isEndElement()) {
-          prefixMappings.pop();
+    if (event.isEndElement()) {
+      prefixMappings.pop();
 
-          Optional.ofNullable(prefixMappings.peek())
-              .ifPresent(
-                  list -> list.forEach(mapping -> prefixMap.endPrefixMapping(mapping.first)));
-        }
-      }
+      Optional.ofNullable(prefixMappings.peek())
+          .ifPresent(list -> list.forEach(mapping -> prefixMap.endPrefixMapping(mapping.first)));
     }
 
     if (event.isEndDocument()) {
@@ -161,7 +161,7 @@ public class EscapePIEventWriter implements XMLEventWriter {
 
   public void setDefaultNamespace(final String uri) {
     Optional.ofNullable(prefixMappings.peek())
-        .ifPresent(list -> list.add(pair(XMLConstants.DEFAULT_NS_PREFIX, uri)));
+        .ifPresent(list -> list.add(pair(DEFAULT_NS_PREFIX, uri)));
   }
 
   public void setPrefix(final String prefix, final String uri) {
@@ -170,10 +170,7 @@ public class EscapePIEventWriter implements XMLEventWriter {
 
   private void writeAttribute(final Attribute attribute) throws IOException {
     writer.write(
-        getName(attribute.getName())
-            + "=\""
-            + attribute.getValue().replaceAll("\"", "&quot;")
-            + "\"");
+        getName(attribute.getName()) + "=\"" + attribute.getValue().replace("\"", "&quot;") + "\"");
   }
 
   private void writeCharacters(final Characters event) throws IOException {
@@ -207,37 +204,35 @@ public class EscapePIEventWriter implements XMLEventWriter {
   private void writeEvent(final XMLEvent event) throws XMLStreamException {
     try {
       switch (event.getEventType()) {
-        case XMLStreamConstants.CDATA:
-        case XMLStreamConstants.CHARACTERS:
-        case XMLStreamConstants.SPACE:
+        case CDATA, CHARACTERS, SPACE:
           writeCharacters(event.asCharacters());
           break;
 
-        case XMLStreamConstants.COMMENT:
+        case COMMENT:
           writeComment((Comment) event);
           break;
 
-        case XMLStreamConstants.DTD:
+        case DTD:
           writeDTD((DTD) event);
           break;
 
-        case XMLStreamConstants.END_ELEMENT:
+        case END_ELEMENT:
           writeEndElement(event.asEndElement());
           break;
 
-        case XMLStreamConstants.ENTITY_REFERENCE:
+        case ENTITY_REFERENCE:
           writeEntityReference((EntityReference) event);
           break;
 
-        case XMLStreamConstants.PROCESSING_INSTRUCTION:
+        case PROCESSING_INSTRUCTION:
           writeProcessingInstruction((ProcessingInstruction) event);
           break;
 
-        case XMLStreamConstants.START_DOCUMENT:
+        case START_DOCUMENT:
           writeStartDocument();
           break;
 
-        case XMLStreamConstants.START_ELEMENT:
+        case START_ELEMENT:
           writeStartElement(event.asStartElement());
           break;
 
@@ -254,7 +249,7 @@ public class EscapePIEventWriter implements XMLEventWriter {
         XMLConstants.XMLNS_ATTRIBUTE
             + (namespace.isDefaultNamespaceDeclaration() ? "" : (":" + namespace.getPrefix()))
             + "=\""
-            + namespace.getNamespaceURI().replaceAll("\"", "&quot;")
+            + namespace.getNamespaceURI().replace("\"", "&quot;")
             + "\"");
   }
 

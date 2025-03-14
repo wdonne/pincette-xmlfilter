@@ -1,6 +1,5 @@
 package net.pincette.xml.stream;
 
-import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
 import static net.pincette.util.Collections.set;
 import static net.pincette.xml.stream.Util.attributes;
@@ -14,7 +13,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
 import javax.xml.namespace.NamespaceContext;
 import javax.xml.namespace.QName;
 import javax.xml.stream.Location;
@@ -36,7 +34,7 @@ import net.pincette.xml.NamespacePrefixMap;
 /**
  * An XMLStreamReader wrapper around an XMLEventReader.
  *
- * @author Werner Donn\u00e9
+ * @author Werner Donné
  */
 public class EventStreamReader implements XMLStreamReader {
   private static final Set<Integer> ATTRIBUTE_TYPES = set(ATTRIBUTE, START_ELEMENT);
@@ -54,8 +52,8 @@ public class EventStreamReader implements XMLStreamReader {
   private List<Namespace> currentNamespaces = new ArrayList<>();
   private List<Attribute> currentAttributes = new ArrayList<>();
   private XMLEvent currentEvent;
-  private NamespacePrefixMap prefixMap = new NamespacePrefixMap();
-  private XMLEventReader reader;
+  private final NamespacePrefixMap prefixMap = new NamespacePrefixMap();
+  private final XMLEventReader reader;
 
   public EventStreamReader(final XMLEventReader reader) {
     this.reader =
@@ -100,8 +98,7 @@ public class EventStreamReader implements XMLStreamReader {
   }
 
   private Map<String, String> createEntityDeclarations(final List<EntityDeclaration> entities) {
-    return entities
-        .stream()
+    return entities.stream()
         .collect(toMap(EntityDeclaration::getName, EntityDeclaration::getReplacementText));
   }
 
@@ -160,8 +157,7 @@ public class EventStreamReader implements XMLStreamReader {
 
     return currentEvent.isAttribute()
         ? tryAttribute.apply((Attribute) currentEvent)
-        : currentAttributes
-            .stream()
+        : currentAttributes.stream()
             .filter(a -> name.equals(a.getName()))
             .map(Attribute::getValue)
             .findFirst()
@@ -169,7 +165,7 @@ public class EventStreamReader implements XMLStreamReader {
   }
 
   private List<Attribute> getAttributes() {
-    return attributes(currentEvent).collect(Collectors.toList());
+    return attributes(currentEvent).toList();
   }
 
   public String getCharacterEncodingScheme() {
@@ -253,7 +249,7 @@ public class EventStreamReader implements XMLStreamReader {
   private List<Namespace> getNamespaces() {
     return namespaces(currentEvent)
         .peek(n -> prefixMap.startPrefixMapping(n.getPrefix(), n.getNamespaceURI()))
-        .collect(Collectors.toList());
+        .toList();
   }
 
   public String getPIData() {
@@ -275,7 +271,7 @@ public class EventStreamReader implements XMLStreamReader {
   public Object getProperty(final String name) {
     if (currentEvent != null && currentEvent.getEventType() == DTD) {
       if ("javax.xml.stream.entities".equals(name)) {
-        final List result = ((DTD) currentEvent).getEntities();
+        final List<EntityDeclaration> result = ((DTD) currentEvent).getEntities();
 
         entityDeclarations = createEntityDeclarations(result);
 
@@ -403,11 +399,9 @@ public class EventStreamReader implements XMLStreamReader {
       } else {
         clearNamespaces();
       }
-    } else {
-      if (currentEvent.isNamespace()) {
-        prefixMap.startPrefixMapping(
-            ((Namespace) currentEvent).getPrefix(), ((Namespace) currentEvent).getNamespaceURI());
-      }
+    } else if (currentEvent.isNamespace()) {
+      prefixMap.startPrefixMapping(
+          ((Namespace) currentEvent).getPrefix(), ((Namespace) currentEvent).getNamespaceURI());
     }
 
     return currentEvent.getEventType();
@@ -443,14 +437,11 @@ public class EventStreamReader implements XMLStreamReader {
       return prefixMap.getNamespacePrefix(namespaceURI);
     }
 
-    public Iterator getPrefixes(final String namespaceURI) {
-      return prefixMap
-          .getCurrentPrefixMap()
-          .entrySet()
-          .stream()
+    public Iterator<String> getPrefixes(final String namespaceURI) {
+      return prefixMap.getCurrentPrefixMap().entrySet().stream()
           .filter(e -> namespaceURI.equals(e.getValue()))
           .map(Map.Entry::getKey)
-          .collect(toList())
+          .toList()
           .iterator();
     }
   }

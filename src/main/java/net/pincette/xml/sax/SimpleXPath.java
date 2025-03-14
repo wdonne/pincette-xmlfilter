@@ -1,13 +1,14 @@
 package net.pincette.xml.sax;
 
+import static java.lang.Integer.parseInt;
 import static java.lang.Long.MAX_VALUE;
 import static java.util.Arrays.stream;
 import static java.util.Comparator.comparingInt;
+import static java.util.Optional.ofNullable;
 import static net.pincette.util.Pair.pair;
 import static net.pincette.util.StreamUtil.rangeExclusive;
 import static net.pincette.util.StreamUtil.takeWhile;
 import static net.pincette.util.StreamUtil.zip;
-import static net.pincette.util.Triple.triple;
 import static net.pincette.xml.Util.ancestors;
 import static net.pincette.xml.Util.children;
 
@@ -24,7 +25,7 @@ import org.w3c.dom.Node;
  * elements consisting of a non-empty qualified name followed by an optional position specification
  * using numbers only. The expression may be relative. The local name may be "*".
  *
- * @author Werner Donn\u00e9
+ * @author Werner Donn
  */
 public class SimpleXPath {
   private SimpleXPath() {}
@@ -41,7 +42,7 @@ public class SimpleXPath {
             .map(
                 element ->
                     getPrefix(element, namespaceURIMap)
-                        + element.getLocalName()
+                        + element.localName()
                         + getPositionText(element))
             .collect(Collectors.joining("/"));
   }
@@ -61,7 +62,9 @@ public class SimpleXPath {
             pair(
                 0,
                 getMatchingChildren(
-                    Optional.ofNullable(contextNode).map(Stream::of).orElseGet(Stream::empty),
+                    ofNullable(contextNode).stream()
+                        .filter(Element.class::isInstance)
+                        .map(n -> (Element) n),
                     path[0])),
             pair -> pair(pair.first + 1, getMatchingChildren(pair.second, path[pair.first + 1])),
             pair -> pair.first < path.length)
@@ -70,14 +73,14 @@ public class SimpleXPath {
         .orElse(new Element[0]);
   }
 
-  private static Stream<Node> getMatchingChildren(
-      final Stream<Node> nodes, final PathElement element) {
+  private static Stream<Element> getMatchingChildren(
+      final Stream<Element> nodes, final PathElement element) {
     return nodes.flatMap(
         node ->
             zip(
                     children(node).filter(n -> nameMatches(n, element)).map(n -> (Element) n),
                     rangeExclusive(0, MAX_VALUE))
-                .filter(pair -> element.getPosition() == -1 || element.getPosition() == pair.second)
+                .filter(pair -> element.position() == -1 || element.position() == pair.second)
                 .map(pair -> pair.first));
   }
 
@@ -88,24 +91,11 @@ public class SimpleXPath {
   public static PathElement[] getPath(
       final String expression, final Map<String, String> namespacePrefixMap) {
     return stream(expression.split("/"))
+        .map(Segment::new)
         .map(
-            token ->
-                triple(
-                    token,
-                    token.indexOf(':') != -1 ? (token.indexOf(':') + 1) : 0,
-                    token.indexOf('[')))
-        .map(
-            triple ->
+            segment ->
                 new PathElement(
-                    triple.second > 0
-                        ? namespacePrefixMap.get(triple.first.substring(0, triple.second - 1))
-                        : namespacePrefixMap.get(""),
-                    triple.first.substring(
-                        triple.second, triple.third != -1 ? triple.third : triple.first.length()),
-                    triple.third != -1
-                        ? Integer.parseInt(
-                            triple.first.substring(triple.third + 1, triple.first.length() - 1))
-                        : -1))
+                    namespacePrefixMap.get(segment.prefix), segment.suffix, segment.index))
         .toArray(PathElement[]::new);
   }
 
@@ -119,7 +109,7 @@ public class SimpleXPath {
   }
 
   private static long getPosition(final Element element) {
-    return Optional.ofNullable(element)
+    return ofNullable(element)
         .map(net.pincette.xml.Util::previousSiblings)
         .map(
             s ->
@@ -133,36 +123,30 @@ public class SimpleXPath {
   }
 
   private static String getPositionText(final PathElement element) {
-    return Optional.of(element.getPosition())
-        .filter(p -> p != -1)
-        .map(p -> "[" + p + "]")
-        .orElse("");
+    return Optional.of(element.position()).filter(p -> p != -1).map(p -> "[" + p + "]").orElse("");
   }
 
   private static String getPrefix(final PathElement element, final Map<String, String> map) {
-    return Optional.ofNullable(element.getNamespaceURI())
+    return ofNullable(element.namespaceURI())
         .map(map::get)
-        .filter(prefix -> !"".equals(prefix))
+        .filter(prefix -> !prefix.isEmpty())
         .map(prefix -> prefix + ":")
         .orElse("");
   }
 
   private static boolean nameMatches(final Node node, final PathElement element) {
-    return ("*".equals(element.getLocalName())
-            || Objects.equals(node.getLocalName(), element.getLocalName()))
-        && Objects.equals(node.getNamespaceURI(), element.getNamespaceURI());
+    return ("*".equals(element.localName())
+            || Objects.equals(node.getLocalName(), element.localName()))
+        && Objects.equals(node.getNamespaceURI(), element.namespaceURI());
   }
 
-  public static class PathElement {
-    private String localName;
-    private String namespaceURI;
-    private long position;
+  public record PathElement(String namespaceURI, String localName, long position) {
 
     /**
      * The <code>namespaceURI</code> may be <code>null</code>. The <code>localName</code> must not
      * be <code>null</code>. The position must be positive or -1, indicating absence.
      */
-    public PathElement(final String namespaceURI, final String localName, final long position) {
+    public PathElement {
       if (position < -1) {
         throw new IllegalArgumentException(String.valueOf(position));
       }
@@ -170,22 +154,22 @@ public class SimpleXPath {
       if (localName == null) {
         throw new NullPointerException();
       }
-
-      this.namespaceURI = namespaceURI;
-      this.localName = localName;
-      this.position = position;
     }
+  }
 
-    public String getLocalName() {
-      return localName;
-    }
+  private static class Segment {
+    private final int index;
+    private final String prefix;
+    private final String suffix;
 
-    public String getNamespaceURI() {
-      return namespaceURI;
-    }
+    private Segment(final String token) {
+      final int colon = token.indexOf(':');
+      final int startOfIndex = token.indexOf('[');
 
-    public long getPosition() {
-      return position;
+      this.prefix = colon != -1 ? token.substring(0, colon) : "";
+      this.suffix = token.substring(colon + 1, startOfIndex != -1 ? startOfIndex : token.length());
+      this.index =
+          startOfIndex != -1 ? parseInt(token.substring(startOfIndex + 1, token.length() - 1)) : -1;
     }
   }
 }

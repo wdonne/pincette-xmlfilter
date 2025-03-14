@@ -12,7 +12,7 @@ import javax.xml.stream.events.XMLEvent;
  * Sets the xml:base attribute on the first element it encounters if <code>baseURI</code> is not
  * <code>null</code>.
  *
- * @author Werner Donn\u00e9
+ * @author Werner Donné
  */
 public class SetBaseURIEventWriter extends EventWriterDelegate {
   private final String baseURI;
@@ -28,6 +28,7 @@ public class SetBaseURIEventWriter extends EventWriterDelegate {
     this.baseURI = baseURI;
   }
 
+  @Override
   public void add(final XMLEvent event) throws XMLStreamException {
     if (event.isStartElement() && !firstSeen) {
       firstSeen = true;

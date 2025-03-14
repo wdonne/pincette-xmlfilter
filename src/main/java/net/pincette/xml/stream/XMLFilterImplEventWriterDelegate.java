@@ -1,6 +1,5 @@
 package net.pincette.xml.stream;
 
-import java.io.IOException;
 import javax.xml.namespace.NamespaceContext;
 import javax.xml.stream.XMLEventWriter;
 import javax.xml.stream.XMLStreamException;
@@ -10,253 +9,144 @@ import org.xml.sax.DTDHandler;
 import org.xml.sax.EntityResolver;
 import org.xml.sax.ErrorHandler;
 import org.xml.sax.InputSource;
-import org.xml.sax.SAXException;
-import org.xml.sax.SAXNotRecognizedException;
-import org.xml.sax.SAXNotSupportedException;
 import org.xml.sax.XMLReader;
 import org.xml.sax.helpers.XMLFilterImpl;
 
-
-
 /**
- * An XMLEventWriter wrapper around an XMLFilterImpl. This implementation class
- * has been chosen because it both implements
- * <code>org.xml.sax.ContentHandler</code> and
- * <code>org.xml.sax.XMLReader</code>.
- * @author Werner Donn\u00e9
+ * An XMLEventWriter wrapper around an XMLFilterImpl. This implementation class has been chosen
+ * because it both implements <code>org.xml.sax.ContentHandler</code> and <code>
+ * org.xml.sax.XMLReader</code>.
+ *
+ * @author Werner Donné
  */
+public class XMLFilterImplEventWriterDelegate extends EventWriterDelegate {
+  private final XMLFilterImpl filter;
+  private final XMLEventWriter wrapper;
 
-public class XMLFilterImplEventWriterDelegate extends EventWriterDelegate
-
-{
-
-  private XMLFilterImpl		filter;
-  private XMLEventWriter	wrapper;
-
-
-
-  public
-  XMLFilterImplEventWriterDelegate(XMLFilterImpl filter)
-  {
+  public XMLFilterImplEventWriterDelegate(final XMLFilterImpl filter) {
     this(filter, null);
   }
 
-
-
-  public
-  XMLFilterImplEventWriterDelegate(XMLFilterImpl filter, XMLEventWriter writer)
-  {
+  public XMLFilterImplEventWriterDelegate(final XMLFilterImpl filter, final XMLEventWriter writer) {
     this.filter = filter;
     setParent(writer);
 
-    ContentHandlerStreamWriter	delegate = new ContentHandlerStreamWriter();
+    final ContentHandlerStreamWriter delegate = new ContentHandlerStreamWriter();
 
     wrapper = new StreamEventWriter(delegate);
     filter.setParent(new ReaderStub(delegate));
-      // Give the filter a chance to do some set-up.
+    // Give the filter a chance to do some set-up.
 
-    if (delegate.getContentHandler() == null)
-    {
+    if (delegate.getContentHandler() == null) {
       delegate.setContentHandler(filter);
     }
   }
 
-
-
-  public void
-  add(XMLEvent event) throws XMLStreamException
-  {
+  @Override
+  public void add(final XMLEvent event) throws XMLStreamException {
     wrapper.add(event);
   }
 
-
-
-  public void
-  close() throws XMLStreamException
-  {
+  @Override
+  public void close() throws XMLStreamException {
     wrapper.close();
   }
 
-
-
-  public void
-  flush() throws XMLStreamException
-  {
+  @Override
+  public void flush() throws XMLStreamException {
     wrapper.flush();
   }
 
-
-
-  public String
-  getPrefix(String uri) throws XMLStreamException
-  {
+  @Override
+  public String getPrefix(final String uri) throws XMLStreamException {
     return wrapper.getPrefix(uri);
   }
 
-
-
-  public void
-  setDefaultNamespace(String uri) throws XMLStreamException
-  {
+  @Override
+  public void setDefaultNamespace(final String uri) throws XMLStreamException {
     wrapper.setDefaultNamespace(uri);
   }
 
-
-
-  public void
-  setNamespaceContext(NamespaceContext context) throws XMLStreamException
-  {
+  @Override
+  public void setNamespaceContext(final NamespaceContext context) throws XMLStreamException {
     wrapper.setNamespaceContext(context);
   }
 
-
-
-  public void
-  setParent(XMLEventWriter writer)
-  {
+  @Override
+  public void setParent(final XMLEventWriter writer) {
     super.setParent(writer);
     filter.setContentHandler(new EventWriterContentHandler(getParent()));
   }
 
-
-
-  public void
-  setPrefix(String prefix, String uri) throws XMLStreamException
-  {
+  @Override
+  public void setPrefix(final String prefix, final String uri) throws XMLStreamException {
     wrapper.setPrefix(prefix, uri);
   }
 
+  private static class ReaderStub implements XMLReader {
+    private DTDHandler dtdHandler;
+    private EntityResolver entityResolver;
+    private ErrorHandler errorHandler;
+    private final ContentHandlerStreamWriter writer;
 
-
-  private class ReaderStub implements XMLReader
-
-  {
-
-    private DTDHandler			dtdHandler;
-    private EntityResolver		entityResolver;
-    private ErrorHandler		errorHandler;
-    private ContentHandlerStreamWriter	writer;
-
-
-
-    public
-    ReaderStub(ContentHandlerStreamWriter writer)
-    {
+    public ReaderStub(final ContentHandlerStreamWriter writer) {
       this.writer = writer;
     }
 
-
-
-    public ContentHandler
-    getContentHandler()
-    {
+    public ContentHandler getContentHandler() {
       return writer.getContentHandler();
     }
 
-
-
-    public DTDHandler
-    getDTDHandler()
-    {
+    public DTDHandler getDTDHandler() {
       return dtdHandler;
     }
 
-
-
-    public EntityResolver
-    getEntityResolver()
-    {
+    public EntityResolver getEntityResolver() {
       return entityResolver;
     }
 
-
-
-    public ErrorHandler
-    getErrorHandler()
-    {
+    public ErrorHandler getErrorHandler() {
       return errorHandler;
     }
 
-
-
-    public boolean
-    getFeature(String name)
-      throws SAXNotRecognizedException, SAXNotSupportedException
-    {
+    public boolean getFeature(final String name) {
       return false;
     }
 
-
-
-    public Object
-    getProperty(String name)
-      throws SAXNotRecognizedException, SAXNotSupportedException
-    {
+    public Object getProperty(final String name) {
       return null;
     }
 
-
-
-    public void
-    parse(InputSource input) throws IOException, SAXException
-    {
+    public void parse(final InputSource input) {
+      // Nothing to do.
     }
 
-
-
-    public void
-    parse(String systemId) throws IOException, SAXException
-    {
+    public void parse(final String systemId) {
+      // Nothing to do.
     }
 
-
-
-    public void
-    setContentHandler(ContentHandler contentHandler)
-    {
+    public void setContentHandler(final ContentHandler contentHandler) {
       writer.setContentHandler(contentHandler);
     }
 
-
-
-    public void
-    setDTDHandler(DTDHandler dtdHandler)
-    {
+    public void setDTDHandler(final DTDHandler dtdHandler) {
       this.dtdHandler = dtdHandler;
     }
 
-
-
-    public void
-    setEntityResolver(EntityResolver entityResolver)
-    {
+    public void setEntityResolver(final EntityResolver entityResolver) {
       this.entityResolver = entityResolver;
     }
 
-
-
-    public void
-    setErrorHandler(ErrorHandler errorHandler)
-    {
+    public void setErrorHandler(final ErrorHandler errorHandler) {
       this.errorHandler = errorHandler;
     }
 
-
-
-    public void
-    setFeature(String name, boolean value)
-      throws SAXNotRecognizedException, SAXNotSupportedException
-    {
+    public void setFeature(final String name, final boolean value) {
+      // Nothing to do.
     }
 
-
-
-    public void
-    setProperty(String name, Object value)
-      throws SAXNotRecognizedException, SAXNotSupportedException
-    {
+    public void setProperty(final String name, final Object value) {
+      // Nothing to do.
     }
-
-  } // ReaderStub
-
-} // XMLFilterImplEventWriterDelegate
+  }
+}

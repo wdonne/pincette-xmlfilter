@@ -15,11 +15,11 @@ import org.xml.sax.helpers.XMLFilterImpl;
 /**
  * Drops the given elements from the stream.
  *
- * @author Werner Donn\u00e9
+ * @author Werner Donné
  */
 public class DiscardElementsFilter extends XMLFilterImpl {
-  private Set<QName> names;
   private final Deque<QName> stack = new ArrayDeque<>();
+  private final Set<QName> names;
 
   public DiscardElementsFilter(final QName[] names) {
     this(names, null);

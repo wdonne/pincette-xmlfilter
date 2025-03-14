@@ -1,6 +1,7 @@
 package net.pincette.xml.stream;
 
 import static java.util.Optional.empty;
+import static java.util.Optional.ofNullable;
 import static java.util.regex.Pattern.compile;
 import static net.pincette.io.StreamConnector.copy;
 import static net.pincette.util.Collections.list;
@@ -45,7 +46,7 @@ import org.w3c.dom.Element;
  * the presence of xml:base attributes or the <code>baseURI</code> constructor argument to determine
  * the base URI.
  *
- * @author Werner Donn\u00e9
+ * @author Werner Donné
  */
 public class XIncludeEventReader extends EventReaderDelegate {
   private static final Pattern PI_ENCODING = compile("encoding=[\"']([^\"']+)[\"']");
@@ -162,7 +163,7 @@ public class XIncludeEventReader extends EventReaderDelegate {
             .findFirst();
     final String href = element.getAttribute("href");
 
-    if ("".equals(href)) {
+    if (href.isEmpty()) {
       return fallback.flatMap(f -> tryToGetRethrow(() -> fallbackReader(f))).orElse(null);
     }
 
@@ -171,7 +172,7 @@ public class XIncludeEventReader extends EventReaderDelegate {
       final URL url = new URL(new URL(tracker.getBaseURI()), href);
 
       if (url.getRef() != null
-          || (!"".equals(parse) && !"xml".equals(parse) && !"text".equals(parse))) {
+          || (!parse.isEmpty() && !"xml".equals(parse) && !"text".equals(parse))) {
         throw new XMLStreamException("Invalid XInclude element.");
       }
 
@@ -179,7 +180,7 @@ public class XIncludeEventReader extends EventReaderDelegate {
         throw new XMLStreamException("Recursive XInclude element.");
       }
 
-      return openUrl(url, href, "".equals(parse) ? "xml" : parse, element.getAttribute("encoding"))
+      return openUrl(url, href, parse.isEmpty() ? "xml" : parse, element.getAttribute("encoding"))
           .orElse(null);
     } catch (IOException e) {
       return fallback
@@ -268,7 +269,7 @@ public class XIncludeEventReader extends EventReaderDelegate {
   @Override
   public XMLEvent peek() {
     return hasNext()
-        ? Optional.ofNullable(reader)
+        ? ofNullable(reader)
             .flatMap(r -> tryToGetRethrow(r::peek))
             .orElseGet(() -> tryToGetRethrow(super::peek).orElse(null))
         : null;
@@ -278,10 +279,9 @@ public class XIncludeEventReader extends EventReaderDelegate {
     final Object result =
         factory.getXMLResolver().resolveEntity(null, href, tracker.getBaseURI(), null);
     final Supplier<InputStream> trySource =
-        () -> result instanceof StreamSource ? ((StreamSource) result).getInputStream() : null;
+        () -> result instanceof StreamSource r ? r.getInputStream() : null;
 
-    return Optional.ofNullable(
-        result instanceof InputStream ? (InputStream) result : trySource.get());
+    return ofNullable(result instanceof InputStream r ? r : trySource.get());
   }
 
   private Optional<XMLEventReader> resolveXMLEntity(final String href) throws XMLStreamException {
@@ -289,23 +289,18 @@ public class XIncludeEventReader extends EventReaderDelegate {
         factory.getXMLResolver().resolveEntity(null, href, tracker.getBaseURI(), null);
     final Supplier<XMLEventReader> tryInputStream =
         () ->
-            result instanceof InputStream
-                ? tryToGetRethrow(() -> factory.createXMLEventReader((InputStream) result))
-                    .orElse(null)
+            result instanceof InputStream r
+                ? tryToGetRethrow(() -> factory.createXMLEventReader(r)).orElse(null)
                 : null;
     final Supplier<XMLEventReader> trySource =
         () ->
-            result instanceof Source
-                ? tryToGetRethrow(() -> factory.createXMLEventReader((Source) result)).orElse(null)
+            result instanceof Source r
+                ? tryToGetRethrow(() -> factory.createXMLEventReader(r)).orElse(null)
                 : tryInputStream.get();
     final Supplier<XMLEventReader> tryStream =
-        () ->
-            result instanceof XMLStreamReader
-                ? new StreamEventReader((XMLStreamReader) result)
-                : trySource.get();
+        () -> result instanceof XMLStreamReader r ? new StreamEventReader(r) : trySource.get();
 
-    return Optional.ofNullable(
-        result instanceof XMLEventReader ? (XMLEventReader) result : tryStream.get());
+    return ofNullable(result instanceof XMLEventReader r ? r : tryStream.get());
   }
 
   private static class SetXIncludeSourceReader extends EventReaderDelegateBase {
@@ -317,6 +312,7 @@ public class XIncludeEventReader extends EventReaderDelegate {
       this.href = href;
     }
 
+    @Override
     public XMLEvent nextEvent() throws XMLStreamException {
       final XMLEvent event = super.nextEvent();
 

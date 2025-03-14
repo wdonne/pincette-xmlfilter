@@ -13,7 +13,7 @@ import javax.xml.stream.events.XMLEvent;
 /**
  * Removes the xml:base attribute if <code>baseURI</code> is not <code>null</code>.
  *
- * @author Werner Donn\u00e9
+ * @author Werner Donn
  */
 public class RemoveBaseURIEventWriter extends EventWriterDelegate {
   private final String baseURI;
@@ -33,22 +33,19 @@ public class RemoveBaseURIEventWriter extends EventWriterDelegate {
         && baseURI.equals(event.getValue());
   }
 
+  @Override
   public void add(final XMLEvent event) throws XMLStreamException {
     if (baseURI == null) {
       getParent().add(event);
-    } else {
-      if (event.isStartElement()) {
-        getParent()
-            .add(
-                factory.createStartElement(
-                    event.asStartElement().getName(),
-                    attributes(event).filter(a -> !shouldRemove(a, baseURI)).iterator(),
-                    event.asStartElement().getNamespaces()));
-      } else {
-        if (!event.isAttribute() || !shouldRemove((Attribute) event, baseURI)) {
-          getParent().add(event);
-        }
-      }
+    } else if (event.isStartElement()) {
+      getParent()
+          .add(
+              factory.createStartElement(
+                  event.asStartElement().getName(),
+                  attributes(event).filter(a -> !shouldRemove(a, baseURI)).iterator(),
+                  event.asStartElement().getNamespaces()));
+    } else if (!event.isAttribute() || !shouldRemove((Attribute) event, baseURI)) {
+      getParent().add(event);
     }
   }
 }

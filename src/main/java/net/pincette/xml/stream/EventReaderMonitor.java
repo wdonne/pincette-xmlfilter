@@ -6,46 +6,29 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.events.XMLEvent;
 import javax.xml.stream.util.EventReaderDelegate;
 
-
-
 /**
  * Sends all consumed events to an XMLEventWriter.
- * @author Werner Donn\u00e9
+ *
+ * @author Werner Donné
  */
+public class EventReaderMonitor extends EventReaderDelegate {
+  private final XMLEventWriter writer;
 
-public class EventReaderMonitor extends EventReaderDelegate
-
-{
-
-  private XMLEventWriter	writer;
-
-
-
-  public
-  EventReaderMonitor(XMLEventWriter writer)
-  {
+  public EventReaderMonitor(final XMLEventWriter writer) {
     this(writer, null);
   }
 
-
-
-  public
-  EventReaderMonitor(XMLEventWriter writer, XMLEventReader reader)
-  {
+  public EventReaderMonitor(final XMLEventWriter writer, final XMLEventReader reader) {
     super(reader);
     this.writer = writer;
   }
 
-
-
-  public XMLEvent
-  nextEvent() throws XMLStreamException
-  {
-    XMLEvent	event = getParent().nextEvent();
+  @Override
+  public XMLEvent nextEvent() throws XMLStreamException {
+    final XMLEvent event = getParent().nextEvent();
 
     writer.add(event);
 
     return event;
   }
-
-} // EventReaderMonitor
+}

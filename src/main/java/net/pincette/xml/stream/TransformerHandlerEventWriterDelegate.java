@@ -7,109 +7,66 @@ import javax.xml.stream.events.XMLEvent;
 import javax.xml.transform.sax.SAXResult;
 import javax.xml.transform.sax.TransformerHandler;
 
-
-
 /**
  * An XMLEventWriter wrapper around an TransformerHandler.
- * @author Werner Donn\u00e9
+ *
+ * @author Werner Donné
  */
+public class TransformerHandlerEventWriterDelegate extends EventWriterDelegate {
+  private final TransformerHandler handler;
+  private final XMLEventWriter wrapper;
 
-public class TransformerHandlerEventWriterDelegate extends EventWriterDelegate
-
-{
-
-  private TransformerHandler	handler;
-  private XMLEventWriter	wrapper;
-
-
-
-  public
-  TransformerHandlerEventWriterDelegate(TransformerHandler handler)
-  {
+  public TransformerHandlerEventWriterDelegate(final TransformerHandler handler) {
     this(handler, null);
   }
 
-
-
-  public
-  TransformerHandlerEventWriterDelegate
-  (
-    TransformerHandler	handler,
-    XMLEventWriter	writer
-  )
-  {
+  public TransformerHandlerEventWriterDelegate(
+      final TransformerHandler handler, final XMLEventWriter writer) {
     this.handler = handler;
     setParent(writer);
     wrapper = new ContentHandlerEventWriter(handler);
   }
 
-
-
-  public void
-  add(XMLEvent event) throws XMLStreamException
-  {
+  @Override
+  public void add(final XMLEvent event) throws XMLStreamException {
     wrapper.add(event);
   }
 
-
-
-  public void
-  close() throws XMLStreamException
-  {
+  @Override
+  public void close() throws XMLStreamException {
     wrapper.close();
   }
 
-
-
-  public void
-  flush() throws XMLStreamException
-  {
+  @Override
+  public void flush() throws XMLStreamException {
     wrapper.flush();
   }
 
-
-
-  public String
-  getPrefix(String uri) throws XMLStreamException
-  {
+  @Override
+  public String getPrefix(final String uri) throws XMLStreamException {
     return wrapper.getPrefix(uri);
   }
 
-
-
-  public void
-  setDefaultNamespace(String uri) throws XMLStreamException
-  {
+  @Override
+  public void setDefaultNamespace(final String uri) throws XMLStreamException {
     wrapper.setDefaultNamespace(uri);
   }
 
-
-
-  public void
-  setNamespaceContext(NamespaceContext context) throws XMLStreamException
-  {
+  @Override
+  public void setNamespaceContext(final NamespaceContext context) throws XMLStreamException {
     wrapper.setNamespaceContext(context);
   }
 
-
-
-  public void
-  setParent(XMLEventWriter writer)
-  {
-    if (writer != null)
-    {
+  @Override
+  public void setParent(final XMLEventWriter writer) {
+    if (writer != null) {
       super.setParent(writer);
-      handler.
-        setResult(new SAXResult(new EventWriterContentHandler(getParent())));
+      handler.setResult(new SAXResult(new EventWriterContentHandler(getParent())));
     }
   }
 
-
-
-  public void
-  setPrefix(String prefix, String uri) throws XMLStreamException
-  {
+  @Override
+  public void setPrefix(final String prefix, final String uri) throws XMLStreamException {
     wrapper.setPrefix(prefix, uri);
   }
-
-} // TransformerHandlerEventWriterDelegate
+}

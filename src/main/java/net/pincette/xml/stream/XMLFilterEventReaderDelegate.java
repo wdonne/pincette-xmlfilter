@@ -1,6 +1,8 @@
 package net.pincette.xml.stream;
 
-import java.io.IOException;
+import static net.pincette.util.Util.tryToDoRethrow;
+import static net.pincette.util.Util.tryToGetRethrow;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -10,163 +12,95 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.events.XMLEvent;
 import javax.xml.stream.util.EventReaderDelegate;
 import org.xml.sax.InputSource;
-import org.xml.sax.SAXException;
-import org.xml.sax.SAXNotRecognizedException;
-import org.xml.sax.SAXNotSupportedException;
 import org.xml.sax.XMLFilter;
 import org.xml.sax.XMLReader;
 import org.xml.sax.helpers.XMLFilterImpl;
 
-
-
 /**
  * An XMLEventReader wrapper around an XMLFilter.
- * @author Werner Donn\u00e9
+ *
+ * @author Werner Donné
  */
+public class XMLFilterEventReaderDelegate extends EventReaderDelegate {
+  private final List<XMLEvent> buffer = new ArrayList<>();
+  private final XMLEventWriter filterWriter;
+  private final XMLReader nop =
+      new XMLFilterImpl() {
+        @Override
+        public void parse(final InputSource input) {
+          // Purpose.
+        }
 
-public class XMLFilterEventReaderDelegate extends EventReaderDelegate
+        @Override
+        public void parse(final String systemId) {
+          // Purpose.
+        }
 
-{
+        @Override
+        public void setFeature(final String name, final boolean value) {
+          // Purpose.
+        }
 
-  private List			buffer = new ArrayList();
-  private XMLEventWriter	filterWriter;
-  private XMLReader		nop =
-    new XMLFilterImpl()
-    {
-      public void
-      parse(InputSource input) throws IOException, SAXException
-      {
-      }
+        @Override
+        public void setProperty(final String name, final Object value) {
+          // Purpose.
+        }
+      };
 
-      public void
-      parse(String systemId) throws IOException, SAXException
-      {
-      }
-
-      public void
-      setFeature(String name, boolean value)
-        throws SAXNotRecognizedException, SAXNotSupportedException
-      {
-      }
-
-      public void
-      setProperty(String name, Object value)
-        throws SAXNotRecognizedException, SAXNotSupportedException
-      {
-      }
-    };
-
-
-
-  public
-  XMLFilterEventReaderDelegate(XMLFilter filter)
-  {
+  public XMLFilterEventReaderDelegate(final XMLFilter filter) {
     this(filter, null);
   }
 
-
-
-  public
-  XMLFilterEventReaderDelegate(XMLFilter filter, XMLEventReader reader)
-  {
+  public XMLFilterEventReaderDelegate(final XMLFilter filter, final XMLEventReader reader) {
     super(reader);
     replaceParser(filter);
+    tryToDoRethrow(() -> filter.parse((String) null));
+    // Make sure the set-up is done in the filter chain.
 
-    try
-    {
-      filter.parse((String) null);
-        // Make sure set-up is done in the filter chain.
-    }
+    filterWriter = new StreamEventWriter(new ContentHandlerStreamWriter(nop.getContentHandler()));
 
-    catch (Exception e)
-    {
-      throw new RuntimeException(e);
-    }
-
-    filterWriter =
-      new StreamEventWriter
-      (
-        new ContentHandlerStreamWriter(nop.getContentHandler())
-      );
-
-    filter.setContentHandler
-    (
-      new EventWriterContentHandler
-      (
-        new DevNullEventWriter()
-        {
-          public void
-          add(XMLEvent event) throws XMLStreamException
-          {
-            buffer.add(event);
-          }
-        }
-      )
-    );
+    filter.setContentHandler(
+        new EventWriterContentHandler(
+            new DevNullEventWriter() {
+              @Override
+              public void add(XMLEvent event) {
+                buffer.add(event);
+              }
+            }));
   }
 
-
-
-  public String
-  getElementText() throws XMLStreamException
-  {
-    return Util.getElementText(this, (XMLEvent) buffer.get(0), null);
+  @Override
+  public String getElementText() throws XMLStreamException {
+    return Util.getElementText(this, buffer.get(0), null);
   }
 
-
-
-  public boolean
-  hasNext()
-  {
-    try
-    {
-      return buffer.size() > 0 || readNext();
-    }
-
-    catch (XMLStreamException e)
-    {
-      throw new RuntimeException(e);
-    }
+  @Override
+  public boolean hasNext() {
+    return tryToGetRethrow(() -> !buffer.isEmpty() || readNext()).orElse(false);
   }
 
-
-
-  public XMLEvent
-  nextEvent() throws XMLStreamException
-  {
-    if (!hasNext())
-    {
+  @Override
+  public XMLEvent nextEvent() throws XMLStreamException {
+    if (!hasNext()) {
       throw new NoSuchElementException();
     }
 
-    return (XMLEvent) buffer.remove(0);
+    return buffer.remove(0);
   }
 
-
-
-  public XMLEvent
-  nextTag() throws XMLStreamException
-  {
+  @Override
+  public XMLEvent nextTag() throws XMLStreamException {
     return Util.nextTag(this);
   }
 
-
-
-  public XMLEvent
-  peek() throws XMLStreamException
-  {
-    return !hasNext() ? null : (XMLEvent) buffer.get(0);
+  @Override
+  public XMLEvent peek() throws XMLStreamException {
+    return !hasNext() ? null : buffer.get(0);
   }
 
-
-
-  private boolean
-  readNext() throws XMLStreamException
-  {
-    while (buffer.size() == 0)
-    {
-      if (!getParent().hasNext())
-      {
+  private boolean readNext() throws XMLStreamException {
+    while (buffer.isEmpty()) {
+      if (!getParent().hasNext()) {
         return false;
       }
 
@@ -176,35 +110,22 @@ public class XMLFilterEventReaderDelegate extends EventReaderDelegate
     return true;
   }
 
+  private void replaceParser(final XMLFilter filter) {
+    XMLFilter previous = null;
 
+    for (XMLFilter i = filter;
+        i.getParent() instanceof XMLFilter;
+        previous = i, i = (XMLFilter) i.getParent())
+      ;
 
-  private void
-  replaceParser(XMLFilter filter)
-  {
-    XMLFilter	previous = null;
-
-    for
-    (
-      XMLFilter i = filter;
-      i.getParent() != null && i.getParent() instanceof XMLFilter;
-      previous = i, i = (XMLFilter) i.getParent()
-    );
-
-    if (previous != null)
-    {
-      if (!(previous.getParent() instanceof XMLFilter))
-      {
+    if (previous != null) {
+      if (previous.getParent() instanceof XMLFilter p) {
+        p.setParent(nop);
+      } else {
         previous.setParent(nop);
       }
-      else
-      {
-        ((XMLFilter) previous.getParent()).setParent(nop);
-      }
-    }
-    else
-    {
+    } else {
       filter.setParent(nop);
     }
   }
-
-} // XMLFilterEventReaderDelegate
+}

@@ -1,5 +1,7 @@
 package net.pincette.xml.stream;
 
+import static javax.xml.XMLConstants.XML_NS_PREFIX;
+import static javax.xml.XMLConstants.XML_NS_URI;
 import static net.pincette.util.Util.isUri;
 import static net.pincette.util.Util.tryToGetRethrow;
 
@@ -7,7 +9,6 @@ import java.net.URL;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.Optional;
-import javax.xml.XMLConstants;
 import javax.xml.namespace.QName;
 import javax.xml.stream.events.Attribute;
 import javax.xml.stream.events.XMLEvent;
@@ -15,7 +16,7 @@ import javax.xml.stream.events.XMLEvent;
 /**
  * Determines the base URI in scope. Filters should send it all of their events.
  *
- * @author Werner Donn\u00e9
+ * @author Werner Donné
  */
 public class BaseURITracker {
   private final Deque<String> baseURIs = new ArrayDeque<>();
@@ -39,8 +40,7 @@ public class BaseURITracker {
           Optional.ofNullable(
                   event
                       .asStartElement()
-                      .getAttributeByName(
-                          new QName(XMLConstants.XML_NS_URI, "base", XMLConstants.XML_NS_PREFIX)))
+                      .getAttributeByName(new QName(XML_NS_URI, "base", XML_NS_PREFIX)))
               .map(Attribute::getValue)
               .map(this::resolveURI)
               .orElse(getBaseURI()));

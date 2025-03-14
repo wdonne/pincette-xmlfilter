@@ -22,7 +22,7 @@ import org.xml.sax.XMLReader;
 /**
  * An XMLEventReader wrapper around an XMLReader.
  *
- * @author Werner Donn\u00e9
+ * @author Werner Donné
  */
 public class XMLReaderEventReader implements XMLEventReader {
   private final XMLReader parser;

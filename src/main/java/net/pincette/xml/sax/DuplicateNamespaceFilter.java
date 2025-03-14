@@ -1,149 +1,107 @@
 package net.pincette.xml.sax;
 
+import static java.util.Optional.ofNullable;
+import static net.pincette.util.StreamUtil.stream;
+import static net.pincette.util.Util.tryToDoRethrow;
+import static net.pincette.xml.sax.Util.attributes;
+import static net.pincette.xml.sax.Util.reduce;
+
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
-import java.util.Stack;
+import javax.xml.XMLConstants;
 import org.xml.sax.Attributes;
 import org.xml.sax.SAXException;
 import org.xml.sax.XMLReader;
-import org.xml.sax.helpers.AttributesImpl;
 import org.xml.sax.helpers.XMLFilterImpl;
 
-
-
 /**
- * Filters out namespace declarations that are already in scope and translates
- * namespace declarations in attribute form into prefix mapping events.
- * @author Werner Donn\u00e9
+ * Filters out namespace declarations that are already in scope and translates namespace
+ * declarations in attribute form into prefix mapping events.
+ *
+ * @author Werner Donné
  */
+public class DuplicateNamespaceFilter extends XMLFilterImpl {
+  private final Deque<Element> elements = new ArrayDeque<>();
 
-public class DuplicateNamespaceFilter extends XMLFilterImpl
+  public DuplicateNamespaceFilter() {}
 
-{
-
-  private Stack	elements = new Stack();
-
-
-
-  public
-  DuplicateNamespaceFilter()
-  {
-  }
-
-
-
-  public
-  DuplicateNamespaceFilter(XMLReader parent)
-  {
+  public DuplicateNamespaceFilter(final XMLReader parent) {
     super(parent);
   }
 
-
-
-  public void
-  endDocument() throws SAXException
-  {
+  @Override
+  public void endDocument() throws SAXException {
     elements.pop();
     super.endDocument();
   }
 
-
-
-  public void
-  endElement(String namespaceURI, String localName, String qName)
-    throws SAXException
-  {
-    Map	syntheticPrefixMap = ((Element) elements.pop()).syntheticPrefixMap;
-
+  @Override
+  public void endElement(final String namespaceURI, final String localName, final String qName)
+      throws SAXException {
     super.endElement(namespaceURI, localName, qName);
-
-    for (Iterator i = syntheticPrefixMap.keySet().iterator(); i.hasNext();)
-    {
-      endPrefixMapping((String) i.next());
-    }
+    elements
+        .pop()
+        .syntheticPrefixMap
+        .keySet()
+        .forEach(k -> tryToDoRethrow(() -> endPrefixMapping(k)));
   }
 
-
-
-  public void
-  endPrefixMapping(String prefix) throws SAXException
-  {
-    if (((Element) elements.peek()).prefixMap.remove(prefix) != null)
-    {
-      super.endPrefixMapping(prefix);
-    }
+  @Override
+  public void endPrefixMapping(final String prefix) throws SAXException {
+    ofNullable(elements.peek())
+        .filter(e -> e.prefixMap.remove(prefix) != null)
+        .ifPresent(p -> tryToDoRethrow(() -> super.endPrefixMapping(prefix)));
   }
 
+  private static boolean isNamespace(final Attribute attribute) {
+    return attribute.localName.startsWith(XMLConstants.XMLNS_ATTRIBUTE);
+  }
 
+  private static String prefix(final Attribute attribute) {
+    return attribute.localName.indexOf(':') != -1
+        ? attribute.localName.substring(attribute.localName.indexOf(':') + 1)
+        : "";
+  }
 
-  public void
-  startDocument() throws SAXException
-  {
+  private static Attributes removeNamespaceAttributes(final Attributes atts) {
+    return reduce(attributes(atts).filter(a -> !isNamespace(a)));
+  }
+
+  @Override
+  public void startDocument() throws SAXException {
     elements.push(new Element());
-      // An extra level because prefix mapping events come around an element.
+    // An extra level because prefix mapping events come around an element.
     super.startDocument();
   }
 
-
-
-  public void
-  startElement
-  (
-    String	namespaceURI,
-    String	localName,
-    String	qName,
-    Attributes	atts
-  ) throws SAXException
-  {
-    AttributesImpl	newAtts = new AttributesImpl(atts);
-
-    for (int i = 0; i < newAtts.getLength(); ++i)
-    {
-      String	name = newAtts.getQName(i);
-
-      if (name.startsWith("xmlns"))
-      {
-        String	prefix =
-          name.indexOf(':') != -1 ? name.substring(name.indexOf(':') + 1) : "";
-
-        startPrefixMapping(prefix, newAtts.getValue(i));
-        ((Element) elements.peek()).syntheticPrefixMap.
-          put(prefix, newAtts.getValue(i));
-        newAtts.removeAttribute(i--);
-      }
-    }
+  @Override
+  public void startElement(
+      final String namespaceURI, final String localName, final String qName, final Attributes atts)
+      throws SAXException {
+    ofNullable(elements.peek())
+        .map(element -> element.syntheticPrefixMap)
+        .ifPresent(
+            prefixMap ->
+                attributes(atts)
+                    .filter(DuplicateNamespaceFilter::isNamespace)
+                    .forEach(a -> tryToDoRethrow(() -> startPrefixMapping(prefix(a), a.value))));
 
     elements.push(new Element());
-    super.startElement(namespaceURI, localName, qName, newAtts);
+    super.startElement(namespaceURI, localName, qName, removeNamespaceAttributes(atts));
   }
 
-
-
-  public void
-  startPrefixMapping(String prefix, String uri) throws SAXException
-  {
-    for (int i = elements.size() - 1; i >= 0; --i)
-    {
-      if (uri.equals(((Element) elements.get(i)).prefixMap.get(prefix)))
-      {
-        return;
-      }
+  @Override
+  public void startPrefixMapping(final String prefix, final String uri) throws SAXException {
+    if (stream(elements.descendingIterator()).noneMatch(e -> uri.equals(e.prefixMap.get(prefix)))) {
+      ofNullable(elements.peek()).ifPresent(e -> e.prefixMap.put(prefix, uri));
+      super.startPrefixMapping(prefix, uri);
     }
-
-    ((Element) elements.peek()).prefixMap.put(prefix, uri);
-    super.startPrefixMapping(prefix, uri);
   }
 
-
-
-  private static class Element
-
-  {
-
-    private Map	prefixMap = new HashMap();
-    private Map	syntheticPrefixMap = new HashMap();
-
-  } // Element
-
-} // DuplicateNamespaceFilter
+  private static class Element {
+    private final Map<String, String> prefixMap = new HashMap<>();
+    private final Map<String, String> syntheticPrefixMap = new HashMap<>();
+  }
+}

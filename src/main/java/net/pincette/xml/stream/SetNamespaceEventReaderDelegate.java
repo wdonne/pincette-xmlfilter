@@ -12,7 +12,7 @@ import javax.xml.stream.util.EventReaderDelegate;
 /**
  * Sets the namespace of start and end events to a given value if it is not set.
  *
- * @author Werner Donn\u00e9
+ * @author Werner Donné
  */
 public class SetNamespaceEventReaderDelegate extends EventReaderDelegate {
   private final XMLEventFactory factory = XMLEventFactory.newFactory();
@@ -43,7 +43,7 @@ public class SetNamespaceEventReaderDelegate extends EventReaderDelegate {
       final StartElement start = event.asStartElement();
 
       return Optional.of(start.getName())
-          .filter(name -> name.getNamespaceURI() == null || name.getNamespaceURI().equals(""))
+          .filter(name -> name.getNamespaceURI() == null || name.getNamespaceURI().isEmpty())
           .map(
               name ->
                   factory.createStartElement(
@@ -59,7 +59,7 @@ public class SetNamespaceEventReaderDelegate extends EventReaderDelegate {
       final EndElement end = event.asEndElement();
 
       return Optional.of(end.getName())
-          .filter(name -> name.getNamespaceURI() == null || name.getNamespaceURI().equals(""))
+          .filter(name -> name.getNamespaceURI() == null || name.getNamespaceURI().isEmpty())
           .map(
               name ->
                   factory.createEndElement(

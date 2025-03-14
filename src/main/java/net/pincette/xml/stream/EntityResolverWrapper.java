@@ -16,12 +16,12 @@ import org.xml.sax.InputSource;
 /**
  * Delegates the operation to a SAX entity resolver.
  *
- * @author Werner Donn\u00e9
+ * @author Werner Donné
  */
 public class EntityResolverWrapper implements XMLResolver {
-  private EntityResolver resolver;
+  private final EntityResolver resolver;
 
-  public EntityResolverWrapper(EntityResolver resolver) {
+  public EntityResolverWrapper(final EntityResolver resolver) {
     this.resolver = resolver;
   }
 
@@ -34,7 +34,8 @@ public class EntityResolverWrapper implements XMLResolver {
         .orElse(null);
   }
 
-  public Object resolveEntity(String publicID, String systemID, String baseURI, String namespace) {
+  public Object resolveEntity(
+      final String publicID, final String systemID, final String baseURI, final String namespace) {
     final Function<InputSource, String> justSource =
         source -> source != null ? source.getSystemId() : null;
     return tryToGetRethrow(() -> resolver.resolveEntity(publicID, systemID))

@@ -8,148 +8,100 @@ import org.xml.sax.Locator;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.XMLFilterImpl;
 
-
-
 /**
  * This SAX handler writes out the events.
- * @author Werner Donn\u00e9
+ *
+ * @author Werner Donné
  */
+public class Tracer extends XMLFilterImpl {
+  private final PrintWriter out;
+  private int indent = 0;
 
-public class Tracer extends XMLFilterImpl
-
-{
-
-  private PrintWriter	out;
-  private int		indent = 0;
-
-
-
-  public
-  Tracer(OutputStream out)
-  {
+  public Tracer(final OutputStream out) {
     this.out = new PrintWriter(out);
   }
 
-
-
-  public void
-  characters(char[] ch, int start, int length) throws SAXException
-  {
+  @Override
+  public void characters(final char[] ch, final int start, final int length) throws SAXException {
     out.println(getIndent() + "characters: " + new String(ch, start, length));
   }
 
-
-
-  public void
-  endDocument() throws SAXException
-  {
+  @Override
+  public void endDocument() throws SAXException {
     indent -= 2;
     out.println(getIndent() + "endDocument");
   }
 
-
-
-  public void
-  endElement(String namespaceURI, String localName, String qName)
-    throws SAXException
-  {
+  @Override
+  public void endElement(final String namespaceURI, final String localName, final String qName)
+      throws SAXException {
     indent -= 2;
-
-    out.println
-    (
-      getIndent() + "endElement: " + namespaceURI + ", " + localName + ", " +
-        qName
-    );
+    out.println(getIndent() + "endElement: " + namespaceURI + ", " + localName + ", " + qName);
   }
 
-
-
-  public void
-  endPrefixMapping(String prefix) throws SAXException
-  {
+  @Override
+  public void endPrefixMapping(final String prefix) throws SAXException {
     out.println(getIndent() + "endPrefixMapping: " + prefix);
   }
 
-
-
-  private String
-  getIndent()
-  {
-    char[]	buffer = new char[indent];
+  private String getIndent() {
+    final char[] buffer = new char[indent];
 
     Arrays.fill(buffer, ' ');
 
     return new String(buffer);
   }
 
-
-
-  public void
-  ignorableWhitespace(char[] ch, int start, int length) throws SAXException
-  {
-    out.println
-    (
-      getIndent() + "ignorableWhitespace: " + new String(ch, start, length)
-    );
+  @Override
+  public void ignorableWhitespace(final char[] ch, final int start, final int length) {
+    out.println(getIndent() + "ignorableWhitespace: " + new String(ch, start, length));
   }
 
-
-
-  public void
-  processingInstruction(String target, String data) throws SAXException
-  {
+  @Override
+  public void processingInstruction(final String target, final String data) {
     out.println(getIndent() + "processingInstruction: " + target + ", " + data);
   }
 
-
-
-  public void
-  setDocumentLocator(Locator locator)
-  {
-    out.println
-    (
-      getIndent() + "setDocumentLocator: " + locator.getPublicId() + ", " +
-        locator.getSystemId() + ", " + String.valueOf(locator.getLineNumber()) +
-        ", " + String.valueOf(locator.getColumnNumber())
-    );
+  @Override
+  public void setDocumentLocator(final Locator locator) {
+    out.println(
+        getIndent()
+            + "setDocumentLocator: "
+            + locator.getPublicId()
+            + ", "
+            + locator.getSystemId()
+            + ", "
+            + locator.getLineNumber()
+            + ", "
+            + locator.getColumnNumber());
   }
 
-
-
-  public void
-  skippedEntity(String name) throws SAXException
-  {
+  @Override
+  public void skippedEntity(final String name) {
     out.println(getIndent() + "skippedEntity: " + name);
   }
 
-
-
-  public void
-  startDocument() throws SAXException
-  {
+  @Override
+  public void startDocument() throws SAXException {
     out.println(getIndent() + "startDocument");
     indent += 2;
   }
 
+  @Override
+  public void startElement(
+      final String namespaceURI, final String localName, final String qName, final Attributes atts)
+      throws SAXException {
+    out.print(
+        getIndent()
+            + "startElement: "
+            + namespaceURI
+            + ", "
+            + localName
+            + ", "
+            + qName
+            + ", atts:");
 
-
-  public void
-  startElement
-  (
-    String	namespaceURI,
-    String	localName,
-    String	qName,
-    Attributes	atts
-  ) throws SAXException
-  {
-    out.print
-    (
-      getIndent() + "startElement: " + namespaceURI + ", " + localName + ", " +
-        qName + ", atts:"
-    );
-
-    for (int i = 0; i < atts.getLength(); ++i)
-    {
+    for (int i = 0; i < atts.getLength(); ++i) {
       out.print(" " + atts.getQName(i) + "=\"" + atts.getValue(i) + "\"");
     }
 
@@ -157,12 +109,8 @@ public class Tracer extends XMLFilterImpl
     indent += 2;
   }
 
-
-
-  public void
-  startPrefixMapping(String prefix, String uri) throws SAXException
-  {
+  @Override
+  public void startPrefixMapping(final String prefix, final String uri) throws SAXException {
     out.println(getIndent() + "startPrefixMapping: " + prefix + ", " + uri);
   }
-
-} // Tracer
+}

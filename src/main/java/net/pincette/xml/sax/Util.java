@@ -1,6 +1,8 @@
 package net.pincette.xml.sax;
 
 import static java.util.stream.Collectors.joining;
+import static javax.xml.parsers.SAXParserFactory.newInstance;
+import static net.pincette.util.StreamUtil.rangeExclusive;
 import static net.pincette.util.Util.tryToDoRethrow;
 import static net.pincette.util.Util.tryToDoSilent;
 import static net.pincette.util.Util.tryToGetRethrow;
@@ -9,6 +11,7 @@ import static net.pincette.xml.Util.secureTransformerFactory;
 import java.net.URL;
 import java.util.Map;
 import java.util.Properties;
+import java.util.stream.Stream;
 import javax.xml.parsers.SAXParserFactory;
 import javax.xml.transform.Templates;
 import javax.xml.transform.Transformer;
@@ -16,10 +19,14 @@ import javax.xml.transform.TransformerConfigurationException;
 import javax.xml.transform.sax.SAXTransformerFactory;
 import javax.xml.transform.sax.TransformerHandler;
 import net.pincette.xml.CatalogResolver;
+import org.xml.sax.Attributes;
 import org.xml.sax.XMLFilter;
 import org.xml.sax.XMLReader;
 import org.xml.sax.helpers.AttributesImpl;
 
+/**
+ * @author Werner Donné
+ */
 public class Util {
   private Util() {}
 
@@ -34,6 +41,10 @@ public class Util {
     atts.addAttribute(namespaceURI, localName, qName, type, value);
 
     return atts;
+  }
+
+  public static Stream<Attribute> attributes(final Attributes atts) {
+    return rangeExclusive(0, atts.getLength()).map(i -> new Attribute(atts, i));
   }
 
   public static XMLReader getParser(final URL catalog, final boolean validating) {
@@ -60,7 +71,7 @@ public class Util {
   }
 
   public static SAXParserFactory newSAXParserFactory(final boolean validating) {
-    final SAXParserFactory factory = SAXParserFactory.newInstance();
+    final SAXParserFactory factory = newInstance();
 
     factory.setNamespaceAware(true);
     factory.setValidating(validating);
@@ -106,6 +117,20 @@ public class Util {
     return result;
   }
 
+  public static Attributes reduce(final Stream<Attribute> atts) {
+    return reduceImpl(atts);
+  }
+
+  public static AttributesImpl reduceImpl(final Stream<Attribute> atts) {
+    return atts.reduce(
+        new AttributesImpl(),
+        (r, a) -> {
+          r.addAttribute(a.namespaceURI, a.localName, a.qName, a.type, a.value);
+          return r;
+        },
+        (r1, r2) -> r1);
+  }
+
   private static void setTransformerParameters(
       final Transformer transformer, final Map<String, String> parameters) {
     parameters.forEach(transformer::setParameter);
@@ -115,12 +140,10 @@ public class Util {
       final SAXParserFactory factory, final boolean validating) {
     tryToDoSilent(
         () -> factory.setFeature("http://apache.org/xml/features/validation/schema", validating));
-
     tryToDoSilent(
         () ->
             factory.setFeature(
                 "http://apache.org/xml/features/validation/schema-full-checking", validating));
-
     tryToDoSilent(() -> factory.setXIncludeAware(true));
   }
 
@@ -129,25 +152,13 @@ public class Util {
         () ->
             parser.setProperty(
                 "http://apache.org/xml/properties/schema/external-schemaLocation",
-                resolver
-                    .getSystemIdentifierMappings()
-                    .keySet()
-                    .stream()
+                resolver.getSystemIdentifierMappings().keySet().stream()
                     .map(key -> key + " " + key + " ")
                     .collect(joining())));
   }
 
-  private static class ParameterizableTemplate implements Templates {
-
-    private final Templates delegate;
-    private final Map<String, String> parameters;
-
-    private ParameterizableTemplate(
-        final Templates delegate, final Map<String, String> parameters) {
-      this.delegate = delegate;
-      this.parameters = parameters;
-    }
-
+  private record ParameterizableTemplate(Templates delegate, Map<String, String> parameters)
+      implements Templates {
     public Properties getOutputProperties() {
       return delegate.getOutputProperties();
     }

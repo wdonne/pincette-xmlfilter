@@ -13,7 +13,9 @@ import javax.xml.stream.events.EndElement;
 import javax.xml.stream.events.StartElement;
 import javax.xml.stream.events.XMLEvent;
 
-/** @author Werner Donn\u00e9 */
+/**
+ * @author Werner Donné
+ */
 public class BeautifierEventWriter extends EventWriterDelegate {
   private final XMLEventFactory factory;
   private int indent = 0;
@@ -30,17 +32,14 @@ public class BeautifierEventWriter extends EventWriterDelegate {
     this.inlineElements = inlineElements;
   }
 
+  @Override
   public void add(final XMLEvent event) throws XMLStreamException {
     if (event.isStartElement()) {
       handleStartElement(event.asStartElement());
-    } else {
-      if (event.isEndElement()) {
-        handleEndElement(event.asEndElement());
-      } else {
-        if (event.isCharacters()) {
-          setInlineSeen(true);
-        }
-      }
+    } else if (event.isEndElement()) {
+      handleEndElement(event.asEndElement());
+    } else if (event.isCharacters()) {
+      setInlineSeen();
     }
 
     super.add(event);
@@ -71,14 +70,14 @@ public class BeautifierEventWriter extends EventWriterDelegate {
       addPrefix();
       indent += 2;
     } else {
-      setInlineSeen(true);
+      setInlineSeen();
     }
 
     inlineSeen.push(false);
   }
 
-  private void setInlineSeen(final boolean value) {
+  private void setInlineSeen() {
     inlineSeen.pop();
-    inlineSeen.push(value);
+    inlineSeen.push(true);
   }
 }

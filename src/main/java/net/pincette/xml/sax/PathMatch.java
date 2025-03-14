@@ -19,7 +19,9 @@ import javax.xml.namespace.QName;
 import net.pincette.util.Pair;
 import net.pincette.util.StreamUtil;
 
-/** @author Werner Donn\u00e9 */
+/**
+ * @author Werner Donné
+ */
 public class PathMatch {
   private final boolean absolute;
   private final Map<QName, Entry> map;
@@ -77,6 +79,6 @@ public class PathMatch {
 
   private static class Entry {
     private boolean accept;
-    private Map<QName, Entry> map = new HashMap<>();
+    private final Map<QName, Entry> map = new HashMap<>();
   }
 }

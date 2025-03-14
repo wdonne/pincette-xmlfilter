@@ -20,7 +20,7 @@ import javax.xml.stream.events.XMLEvent;
 /**
  * An XMLEventReader wrapper around an XMLStreamReader.
  *
- * @author Werner Donn\u00e9
+ * @author Werner Donné
  */
 public class StreamEventReader implements XMLEventReader {
   private final List<XMLEvent> buffer = new ArrayList<>();

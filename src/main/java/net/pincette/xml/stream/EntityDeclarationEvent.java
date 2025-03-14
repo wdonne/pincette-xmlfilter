@@ -2,6 +2,14 @@ package net.pincette.xml.stream;
 
 import static net.pincette.util.Util.tryToDoRethrow;
 import static net.pincette.util.Util.tryToGetWithRethrow;
+import static net.pincette.xml.Util.children;
+import static org.w3c.dom.Node.CDATA_SECTION_NODE;
+import static org.w3c.dom.Node.COMMENT_NODE;
+import static org.w3c.dom.Node.ELEMENT_NODE;
+import static org.w3c.dom.Node.ENTITY_NODE;
+import static org.w3c.dom.Node.ENTITY_REFERENCE_NODE;
+import static org.w3c.dom.Node.PROCESSING_INSTRUCTION_NODE;
+import static org.w3c.dom.Node.TEXT_NODE;
 
 import java.io.StringWriter;
 import javax.xml.transform.TransformerFactory;
@@ -12,6 +20,9 @@ import org.w3c.dom.Entity;
 import org.w3c.dom.Node;
 import org.w3c.dom.ProcessingInstruction;
 
+/**
+ * @author Werner Donné
+ */
 public class EntityDeclarationEvent extends XMLEventBase
     implements javax.xml.stream.events.EntityDeclaration {
   private final Entity entity;
@@ -39,45 +50,46 @@ public class EntityDeclarationEvent extends XMLEventBase
   private static String entityToText(final Node node) {
     final StringBuilder builder = new StringBuilder();
 
-    for (Node n = node.getFirstChild(); n != null; n = n.getNextSibling()) {
-      switch (n.getNodeType()) {
-        case Node.CDATA_SECTION_NODE:
-          builder.append("<![CDATA[");
-          builder.append(n.getTextContent());
-          builder.append("]]>");
-          break;
+    children(node)
+        .forEach(
+            n -> {
+              switch (n.getNodeType()) {
+                case CDATA_SECTION_NODE:
+                  builder.append("<![CDATA[");
+                  builder.append(n.getTextContent());
+                  builder.append("]]>");
+                  break;
 
-        case Node.COMMENT_NODE:
-          builder.append("<!--");
-          builder.append(n.getTextContent());
-          builder.append("-->");
-          break;
+                case COMMENT_NODE:
+                  builder.append("<!--");
+                  builder.append(n.getTextContent());
+                  builder.append("-->");
+                  break;
 
-        case Node.ELEMENT_NODE:
-          builder.append(elementToText(n));
-          break;
+                case ELEMENT_NODE:
+                  builder.append(elementToText(n));
+                  break;
 
-        case Node.ENTITY_NODE:
-        case Node.ENTITY_REFERENCE_NODE:
-          builder.append(entityToText(n));
-          break;
+                case ENTITY_NODE, ENTITY_REFERENCE_NODE:
+                  builder.append(entityToText(n));
+                  break;
 
-        case Node.PROCESSING_INSTRUCTION_NODE:
-          builder.append("<?");
-          builder.append(((ProcessingInstruction) n).getTarget());
-          builder.append(' ');
-          builder.append(((ProcessingInstruction) n).getData());
-          builder.append("?>");
-          break;
+                case PROCESSING_INSTRUCTION_NODE:
+                  builder.append("<?");
+                  builder.append(((ProcessingInstruction) n).getTarget());
+                  builder.append(' ');
+                  builder.append(((ProcessingInstruction) n).getData());
+                  builder.append("?>");
+                  break;
 
-        case Node.TEXT_NODE:
-          builder.append(n.getTextContent());
-          break;
+                case TEXT_NODE:
+                  builder.append(n.getTextContent());
+                  break;
 
-        default:
-          break;
-      }
-    }
+                default:
+                  break;
+              }
+            });
 
     return builder.toString();
   }

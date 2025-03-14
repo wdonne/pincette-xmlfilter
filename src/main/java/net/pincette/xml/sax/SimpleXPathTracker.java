@@ -1,129 +1,68 @@
 package net.pincette.xml.sax;
 
+import static java.util.Optional.ofNullable;
+import static net.pincette.util.StreamUtil.stream;
+
+import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Iterator;
+import java.util.Deque;
 import java.util.List;
-import java.util.Stack;
-
-
 
 /**
- * A helper for XML filters. It can give SimpleXPath at any position.
- * @author Werner Donn\u00e9
+ * A helper for XML filters. It can give a <code>SimpleXPath</code> at any position.
+ *
+ * @author Werner Donné
  */
+public class SimpleXPathTracker {
+  private final Deque<Element> elements = new ArrayDeque<>();
 
-public class SimpleXPathTracker
-
-{
-
-  private Stack				elements = new Stack();
-
-
-
-  private static int
-  countElements(Element element, List list)
-  {
-    int	result = 0;
-
-    for (Iterator i = list.iterator(); i.hasNext();)
-    {
-      Element	e = (Element) i.next();
-
-      if
-      (
-        element.namespaceURI.equals(e.namespaceURI)	&&
-        element.localName.equals(e.localName)
-      )
-      {
-        ++result;
-      }
-    }
-
-    return result;
+  public SimpleXPath.PathElement[] getXPath() {
+    return stream(elements.descendingIterator())
+        .map(
+            element ->
+                new SimpleXPath.PathElement(
+                    element.namespaceURI,
+                    element.localName,
+                    ofNullable(element.parent)
+                        .map(p -> sameSiblings(element, p.children))
+                        .orElse(1L)))
+        .toArray(SimpleXPath.PathElement[]::new);
   }
 
-
-
-  public SimpleXPath.PathElement[]
-  getXPath()
-  {
-    List	result = new ArrayList();
-
-    for (int i = elements.size() - 1; i > 0; --i)
-    {
-      Element	element = (Element) elements.get(i);
-
-      result.add
-      (
-        0,
-        new SimpleXPath.PathElement
-        (
-          element.namespaceURI,
-          element.localName,
-          countElements(element, ((Element) elements.get(i - 1)).children)
-        )
-      );
-    }
-
-    if (!elements.empty())
-    {
-      Element	root = (Element) elements.get(0);
-
-      result.add
-      (
-        0,
-        new SimpleXPath.PathElement(root.namespaceURI, root.localName, 1)
-      );
-    }
-
-    return
-      (SimpleXPath.PathElement[])
-        result.toArray(new SimpleXPath.PathElement[0]);
-  }
-
-
-
-  public void
-  pop()
-  {
+  public void pop() {
     elements.pop();
   }
 
-
-
-  public void
-  push(String namespaceURI, String localName)
-  {
-    Element	element = new Element(namespaceURI, localName);
-    Element	parent = elements.empty() ? null : (Element) elements.peek();
-
-    if (parent != null)
-    {
-      parent.children.add(element);
-    }
-
-    elements.push(element);
+  public void push(final String namespaceURI, final String localName) {
+    elements.push(
+        ofNullable(elements.peek())
+            .map(parent -> new Element(namespaceURI, localName, parent))
+            .orElseGet(() -> new Element(namespaceURI, localName, null)));
   }
 
+  private static long sameSiblings(final Element element, final List<Element> list) {
+    return list.stream()
+        .filter(
+            e ->
+                element.namespaceURI.equals(e.namespaceURI)
+                    && element.localName.equals(e.localName))
+        .count();
+  }
 
+  private static class Element {
+    private final List<Element> children = new ArrayList<>();
+    private final String localName;
+    private final String namespaceURI;
+    private final Element parent;
 
-  private static class Element
-
-  {
-
-    private List	children = new ArrayList();
-    private String	localName;
-    private String	namespaceURI;
-
-
-
-    private
-    Element(String namespaceURI, String localName)
-    {
+    private Element(final String namespaceURI, final String localName, final Element parent) {
       this.namespaceURI = namespaceURI;
       this.localName = localName;
+      this.parent = parent;
+
+      if (parent != null) {
+        parent.children.add(this);
+      }
     }
-
-  } // Element
-
-} // SimpleXPathTracker
+  }
+}
